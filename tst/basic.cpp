@@ -27,13 +27,13 @@ void unitAction() { std::cout << "called " << __func__ << std::endl; }
 } // namespace Actions
 
 enum class States {
-  idle,
+  off,
   on,
   NUM_STATES,
-  INITIAL = idle,
+  INITIAL = off,
 };
 
-enum class Events { nextCycle, gateTimeOver };
+enum class Events { turnOn, turnOff };
 
 using StateMachine = susml::StateMachine<States, Events>;
 using Transition = StateMachine::Transition;
@@ -42,9 +42,9 @@ using TransitionMatrix = StateMachine::TransitionMatrix;
 
 StateMachine m{TransitionMatrix{
     TransitionList{
-        // transitions starting at state idle
+        // transitions starting at state off
         {
-            Events::nextCycle,   // transition in response to nextCycle event
+            Events::turnOn,      // transition in response to turnOn event
             {Guards::unitGuard}, // transition only if unitGuard return true
             {Actions::unitAction,
              Actions::unitAction}, // on transition, call unitAction twice
@@ -54,14 +54,14 @@ StateMachine m{TransitionMatrix{
     TransitionList{
         // transitions starting at state on
         {
-            Events::gateTimeOver,  // transition in response to gateTimeOver
+            Events::turnOff,       // transition in response to turnOff
                                    // event
             {Guards::unitGuard},   // transition only if unitGuard returns true
             {Actions::unitAction}, // on transition, call unitAction
-            States::idle           // transition to state idle
+            States::off            // transition to state off
         },
         {
-            Events::nextCycle,     // transition in response to nextCycle event
+            Events::turnOn,        // transition in response to turnOn event
             {},                    // transition always
             {Actions::unitAction}, // on transition, call unitAction
             States::on             // transition to state on
@@ -74,30 +74,30 @@ int main() {
             << std::endl;
   std::cout << std::endl;
 
-  std::cout << "triggering Events::nextCycle at state #"
+  std::cout << "triggering Events::turnOn at state #"
             << static_cast<int>(m.getState()) << std::endl;
-  m.trigger(Events::nextCycle);
+  m.trigger(Events::turnOn);
   std::cout << "after event at state #" << static_cast<int>(m.getState())
             << std::endl;
   std::cout << std::endl;
 
-  std::cout << "triggering Events::nextCycle at state #"
+  std::cout << "triggering Events::turnOn at state #"
             << static_cast<int>(m.getState()) << std::endl;
-  m.trigger(Events::nextCycle);
+  m.trigger(Events::turnOn);
   std::cout << "after event at state #" << static_cast<int>(m.getState())
             << std::endl;
   std::cout << std::endl;
 
-  std::cout << "triggering Events::gateTimeOver at state #"
+  std::cout << "triggering Events::turnOff at state #"
             << static_cast<int>(m.getState()) << std::endl;
-  m.trigger(Events::gateTimeOver);
+  m.trigger(Events::turnOff);
   std::cout << "after event at state #" << static_cast<int>(m.getState())
             << std::endl;
   std::cout << std::endl;
 
-  std::cout << "triggering Events::gateTimeOver at state #"
+  std::cout << "triggering Events::turnOff at state #"
             << static_cast<int>(m.getState()) << std::endl;
-  m.trigger(Events::gateTimeOver);
+  m.trigger(Events::turnOff);
   std::cout << "after event at state #" << static_cast<int>(m.getState())
             << std::endl;
   std::cout << std::endl;
