@@ -15,8 +15,6 @@ cmake_minimum_required(VERSION 3.7)
 project(susml)
 
 set(TEST_DIR ${PROJECT_SOURCE_DIR}/tst)
-set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
-set(SUSML_HEADER ${SRC_DIR}/susml.hpp)
 
 set(CMAKE_CXX_STANDARD 11)
 
@@ -35,6 +33,6 @@ find_package(Threads REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
 add_executable(basicGTest ${TEST_DIR}/basic.gtest.cpp)
-target_include_directories(basicGTest PUBLIC ${SRC_DIR})
+target_include_directories(basicGTest PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(basicGTest ${GTEST_BOTH_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 add_test(allBasicGTests basicGTest)
