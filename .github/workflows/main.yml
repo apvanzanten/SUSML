@@ -9,7 +9,6 @@ on:
     branches:
     - master
     - development
-    - devops_scripts
   pull_request:
     branches:
     - master
