@@ -38,14 +38,14 @@ public:
                  static_cast<std::size_t>(StateEnum::NUM_STATES)>;
 
 private:
-  TransitionMatrix transitionMatrix;
+  const TransitionMatrix transitionMatrix;
   StateEnum current_state = StateEnum::INITIAL;
 
-  std::size_t getCurrentStateIndex() {
+  std::size_t getCurrentStateIndex() const {
     return static_cast<std::size_t>(current_state);
   }
 
-  std::optional<Transition> find_relevant_transition(EventEnum event) {
+  std::optional<Transition> find_relevant_transition(EventEnum event) const {
     const auto begin = transitionMatrix[getCurrentStateIndex()].begin();
     const auto end = transitionMatrix[getCurrentStateIndex()].end();
 
