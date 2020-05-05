@@ -28,7 +28,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: make build dir
-      uses: mkdir build && cd build
+      run: mkdir build && cd build
     - name: run cmake
       run: cmake ../
     - name: build
