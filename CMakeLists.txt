@@ -18,7 +18,7 @@ set(TEST_DIR ${PROJECT_SOURCE_DIR}/tst)
 set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
 set(SUSML_HEADER ${SRC_DIR}/susml.hpp)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 11)
 
 set(WARNINGS "-Wall -Wextra -pedantic -Werror")
 set(SANITIZERS "-fsanitize=address -fsanitize=leak -fsanitize=undefined")

@@ -32,7 +32,7 @@ public:
 
     bool checkGuards() const {
       return std::all_of(guards.begin(), guards.end(),
-                         [](const auto &g) { return g(); });
+                         [](const Guard &g) { return g(); });
     }
 
     void executeActions() const {
@@ -68,7 +68,7 @@ public:
   void trigger(EventEnum event) {
     const auto tList = getTransitionsFromCurrentState();
     const auto it =
-        std::find_if(tList.begin(), tList.end(), [&event](const auto &t) {
+        std::find_if(tList.begin(), tList.end(), [&event](const Transition &t) {
           return t.event == event && t.checkGuards();
         });
 
