@@ -30,7 +30,7 @@ jobs:
     - name: make build dir
       run: mkdir build && cd build
     - name: run cmake
-      run: cmake ../
+      run: cmake ${{ GITHUB_WORKSPACE }}
     - name: build
       run: make
     - name: run tests
