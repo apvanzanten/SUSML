@@ -28,7 +28,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: install gtest
-      run: apt-get install libgtest-dev
+      run: sudo apt-get install libgtest-dev
     - name: make build dir
       run: mkdir build && cd build
     - name: run cmake
