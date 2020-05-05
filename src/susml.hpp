@@ -16,7 +16,6 @@
 
 #include <array>
 #include <functional>
-#include <optional>
 #include <vector>
 
 namespace susml {
@@ -30,6 +29,17 @@ public:
     std::vector<Guard> guards;
     std::vector<Action> actions;
     StateEnum target;
+
+    bool checkGuards() const {
+      return std::all_of(guards.begin(), guards.end(),
+                         [](const auto &g) { return g(); });
+    }
+
+    void executeActions() const {
+      for (const auto &a : actions) {
+        a();
+      }
+    }
   };
 
   using TransitionList = std::vector<Transition>;
@@ -45,42 +55,29 @@ private:
     return static_cast<std::size_t>(current_state);
   }
 
-  std::optional<Transition> find_relevant_transition(EventEnum event) const {
-    const auto begin = transitionMatrix[getCurrentStateIndex()].begin();
-    const auto end = transitionMatrix[getCurrentStateIndex()].end();
-
-    const auto it = std::find_if(begin, end, [&event](const auto &t) {
-      return (t.event == event // the correct event
-              &&
-              std::all_of(t.guards.begin(), t.guards.end(),
-                          [](const auto &g) { return g(); }) // all guards hold
-      );
-    });
-
-    if (it != end) {
-      return *it;
-    }
-    return {};
+  const TransitionList &getTransitionsFromCurrentState() const {
+    return transitionMatrix[getCurrentStateIndex()];
   }
 
 public:
   StateMachine(TransitionMatrix transitionMatrix)
       : transitionMatrix(transitionMatrix) {}
 
+  StateEnum getState() const { return current_state; }
+
   void trigger(EventEnum event) {
-    const auto t_opt = find_relevant_transition(event);
+    const auto tList = getTransitionsFromCurrentState();
+    const auto it =
+        std::find_if(tList.begin(), tList.end(), [&event](const auto &t) {
+          return t.event == event && t.checkGuards();
+        });
 
-    if (t_opt.has_value()) {
-      const auto &t = t_opt.value();
-      for (const auto &a : t.actions) {
-        a();
-      }
-
+    if (it != tList.end()) {
+      const auto &t = *it;
+      t.executeActions();
       current_state = t.target;
     }
   }
-
-  StateEnum getState() const { return current_state; }
 };
 } // namespace susml
 
