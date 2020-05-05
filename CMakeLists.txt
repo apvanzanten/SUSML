@@ -34,6 +34,7 @@ target_include_directories(basicTest PUBLIC ${SRC_DIR})
 
 enable_testing()
 find_package(GTest REQUIRED)
+find_package(Threads REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
 add_executable(basicGTest ${TEST_DIR}/basic.gtest.cpp)
