@@ -31,3 +31,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_executable(basicTest ${TEST_DIR}/basic.cpp)
 target_include_directories(basicTest PUBLIC ${SRC_DIR})
+
+enable_testing()
+find_package(GTest REQUIRED)
+find_package(Threads REQUIRED)
+include_directories(${GTEST_INCLUDE_DIRS})
+
+add_executable(basicGTest ${TEST_DIR}/basic.gtest.cpp)
+target_include_directories(basicGTest PUBLIC ${SRC_DIR})
+target_link_libraries(basicGTest ${GTEST_BOTH_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+add_test(allBasicGTests basicGTest)
+add_test(oldBasicTest basicTest)

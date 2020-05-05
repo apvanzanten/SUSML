@@ -24,13 +24,22 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
+    - name: checkout files
+      uses: actions/checkout@v2
+
+    - name: install gtest # This is kind of terrible. I blame ubuntu.
+      run: |
+        sudo apt-get install libgtest-dev
+        cd /usr/src/gtest
+        sudo cmake CMakeLists.txt
+        sudo make
+        sudo cp *.a /usr/lib
 
     - name: make build dir
-      run: mkdir build && cd build
+      run: mkdir $HOME/build && cd $HOME/build
     - name: run cmake
       run: cmake $GITHUB_WORKSPACE
     - name: build
       run: make
     - name: run tests
-      run: ./basicTest
+      run: make test

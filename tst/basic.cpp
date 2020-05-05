@@ -68,11 +68,16 @@ StateMachine m{TransitionMatrix{
         }}}};
 
 int main() {
+  bool result = true;
+  auto check_eq = [&result](auto a, auto b) { result = result && (a == b); };
+
   std::cout << "StateMachineTest start!" << std::endl;
 
   std::cout << "starting at state: " << static_cast<int>(m.getState())
             << std::endl;
   std::cout << std::endl;
+  check_eq(m.getState(), States::INITIAL);
+  check_eq(m.getState(), States::off);
 
   std::cout << "triggering Events::turnOn at state #"
             << static_cast<int>(m.getState()) << std::endl;
@@ -80,6 +85,7 @@ int main() {
   std::cout << "after event at state #" << static_cast<int>(m.getState())
             << std::endl;
   std::cout << std::endl;
+  check_eq(m.getState(), States::on);
 
   std::cout << "triggering Events::turnOn at state #"
             << static_cast<int>(m.getState()) << std::endl;
@@ -87,6 +93,7 @@ int main() {
   std::cout << "after event at state #" << static_cast<int>(m.getState())
             << std::endl;
   std::cout << std::endl;
+  check_eq(m.getState(), States::on);
 
   std::cout << "triggering Events::turnOff at state #"
             << static_cast<int>(m.getState()) << std::endl;
@@ -94,6 +101,7 @@ int main() {
   std::cout << "after event at state #" << static_cast<int>(m.getState())
             << std::endl;
   std::cout << std::endl;
+  check_eq(m.getState(), States::off);
 
   std::cout << "triggering Events::turnOff at state #"
             << static_cast<int>(m.getState()) << std::endl;
@@ -101,6 +109,9 @@ int main() {
   std::cout << "after event at state #" << static_cast<int>(m.getState())
             << std::endl;
   std::cout << std::endl;
+  check_eq(m.getState(), States::off);
 
-  return 0;
+  std::cout << "test result: " << (result ? "PASS" : "FAIL") << std::endl;
+
+  return result ? 0 : 1;
 }
