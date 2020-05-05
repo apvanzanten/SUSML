@@ -33,4 +33,4 @@ jobs:
     - name: build
       run: make
     - name: run tests
-      run: ./basicTest
+      run: make test
