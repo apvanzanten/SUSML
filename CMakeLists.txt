@@ -16,7 +16,7 @@ project(susml)
 
 set(TEST_DIR ${PROJECT_SOURCE_DIR}/tst)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 set(WARNINGS "-Wall -Wextra -pedantic -Werror")
 set(SANITIZERS "-fsanitize=address -fsanitize=leak -fsanitize=undefined")

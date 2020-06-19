@@ -16,26 +16,41 @@
 
 #include <array>
 #include <functional>
+#include <type_traits>
 #include <vector>
 
 namespace susml {
-using Guard = std::function<bool()>;
-using Action = std::function<void()>;
 
-template <typename StateEnum, typename EventEnum> class StateMachine {
+template <typename State, // Should be enum with items for states + NUM_STATES
+                          // and INITIAL
+          typename Event, // Should be enum with items for events
+          typename Guard = std::function<bool()>,
+          typename Action = std::function<void()>>
+class StateMachine {
 public:
+  static_assert(std::is_enum<State>::value, "State should be enum");
+  static_assert(std::is_enum<Event>::value, "Event should be enum");
+  static_assert(std::is_invocable<Guard>::value, "Guard should be invocable");
+  static_assert(std::is_invocable<Action>::value, "Action should be invocable");
+  static_assert(
+      std::is_same<typename std::invoke_result<Guard>::type, bool>::value,
+      "Guard should return bool.");
+  static_assert(
+      std::is_same<typename std::invoke_result<Action>::type, void>::value,
+      "Action should return void.");
+
   struct Transition {
-    EventEnum event;
+    Event event;
     std::vector<Guard> guards;
     std::vector<Action> actions;
-    StateEnum target;
+    State target;
 
-    bool checkGuards() const {
+    constexpr bool checkGuards() const {
       return std::all_of(guards.begin(), guards.end(),
                          [](const Guard &g) { return g(); });
     }
 
-    void executeActions() const {
+    constexpr void executeActions() const {
       for (const auto &a : actions) {
         a();
       }
@@ -44,28 +59,27 @@ public:
 
   using TransitionList = std::vector<Transition>;
   using TransitionMatrix =
-      std::array<TransitionList,
-                 static_cast<std::size_t>(StateEnum::NUM_STATES)>;
+      std::array<TransitionList, static_cast<std::size_t>(State::NUM_STATES)>;
 
 private:
   const TransitionMatrix transitionMatrix;
-  StateEnum current_state = StateEnum::INITIAL;
+  State current_state = State::INITIAL;
 
-  std::size_t getCurrentStateIndex() const {
+  constexpr std::size_t getCurrentStateIndex() const {
     return static_cast<std::size_t>(current_state);
   }
 
-  const TransitionList &getTransitionsFromCurrentState() const {
+  constexpr const TransitionList &getTransitionsFromCurrentState() const {
     return transitionMatrix[getCurrentStateIndex()];
   }
 
 public:
-  StateMachine(TransitionMatrix transitionMatrix)
+  constexpr StateMachine(TransitionMatrix transitionMatrix)
       : transitionMatrix(transitionMatrix) {}
 
-  StateEnum getState() const { return current_state; }
+  constexpr State getState() const { return current_state; }
 
-  void trigger(EventEnum event) {
+  void trigger(Event event) {
     const auto tList = getTransitionsFromCurrentState();
     const auto it =
         std::find_if(tList.begin(), tList.end(), [&event](const Transition &t) {
