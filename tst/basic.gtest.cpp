@@ -40,7 +40,7 @@ enum class Event { turnOn, turnOff };
 using Transition = susml::Transition<State, Event>;
 using StateMachine = susml::StateMachine<Transition>;
 
-decltype(auto) createBasicMachine() {
+auto createBasicMachine() {
   return StateMachine{
       {{
            State::off,          // transition from state off
