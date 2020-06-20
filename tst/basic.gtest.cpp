@@ -25,34 +25,33 @@ const State INITIAL_STATE = State::off;
 enum class Event { turnOn, turnOff };
 
 using Transition = susml::Transition<State, Event>;
-using Transitions = std::vector<Transition>;
+using StateMachine = susml::StateMachine<Transition>;
 
 decltype(auto) createBasicMachine() {
-  return susml::StateMachine{
-      Transitions{
-          {
-              State::off,          // transition from state off
-              Event::turnOn,       // transition in response to turnOn event
-              {Guards::unitGuard}, // transition only if unitGuard return true
-              {Actions::unitAction,
-               Actions::unitAction}, // on transition, call unitAction twice
-              State::on              // transition to state on
-          },
-          {
-              State::on,           // transition from state on
-              Event::turnOff,      // transition in response to turnOff
-                                   // event
-              {Guards::unitGuard}, // transition only if unitGuard returns true
-              {Actions::unitAction}, // on transition, call unitAction
-              State::off             // transition to state off
-          },
-          {
-              State::on,             // transition from state on
-              Event::turnOn,         // transition in response to turnOn event
-              {},                    // transition always
-              {Actions::unitAction}, // on transition, call unitAction
-              State::on              // transition to state on
-          }},
+  return StateMachine{
+      {{
+           State::off,          // transition from state off
+           Event::turnOn,       // transition in response to turnOn event
+           {Guards::unitGuard}, // transition only if unitGuard return true
+           {Actions::unitAction,
+            Actions::unitAction}, // on transition, call unitAction twice
+           State::on              // transition to state on
+       },
+       {
+           State::on,             // transition from state on
+           Event::turnOff,        // transition in response to turnOff
+                                  // event
+           {Guards::unitGuard},   // transition only if unitGuard returns true
+           {Actions::unitAction}, // on transition, call unitAction
+           State::off             // transition to state off
+       },
+       {
+           State::on,             // transition from state on
+           Event::turnOn,         // transition in response to turnOn event
+           {},                    // transition always
+           {Actions::unitAction}, // on transition, call unitAction
+           State::on              // transition to state on
+       }},
       INITIAL_STATE};
 }
 

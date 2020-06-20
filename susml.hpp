@@ -19,6 +19,9 @@
 #include <vector>
 
 namespace susml {
+
+// Transition is defined separately outside of Statemachine, such that the user
+// can specify what TransitionContainer to use in StateMachine.
 template <typename State,               // Should be enum with items for states
           typename Event,               // Should be enum with items for events
           typename Guard = bool (*)(),  // Should be invocable bool()
@@ -65,9 +68,17 @@ struct Transition {
   }
 };
 
-template <typename TransitionContainer> class StateMachine {
+template <typename Transition,
+          typename TransitionContainer = std::vector<Transition>>
+class StateMachine {
+  static_assert(
+      std::is_same<Transition, typename TransitionContainer::value_type>::value,
+      "TransitionContainer should be Container of Transition");
+
+public:
+  using TransitionContainerType = TransitionContainer;
+
 private:
-  using Transition = typename TransitionContainer::value_type;
   using State = typename Transition::StateType;
   using Event = typename Transition::EventType;
 
