@@ -14,20 +14,20 @@
 #ifndef SUSML_HPP
 #define SUSML_HPP
 
-#include <array>
-#include <functional>
+#include <algorithm>
 #include <type_traits>
 #include <vector>
 
 namespace susml {
-
-template <typename State, // Should be enum with items for states + NUM_STATES
-                          // and INITIAL
-          typename Event, // Should be enum with items for events
-          typename Guard = std::function<bool()>,
-          typename Action = std::function<void()>>
-class StateMachine {
-public:
+template <typename State,               // Should be enum with items for states
+          typename Event,               // Should be enum with items for events
+          typename Guard = bool (*)(),  // Should be invocable bool()
+          typename Action = void (*)(), // should be invocable void()
+          typename GuardContainer =
+              std::vector<Guard>, // should be Container of Guard
+          typename ActionContainer =
+              std::vector<Action>> // should be Container of Action
+struct Transition {
   static_assert(std::is_enum<State>::value, "State should be enum");
   static_assert(std::is_enum<Event>::value, "Event should be enum");
   static_assert(std::is_invocable<Guard>::value, "Guard should be invocable");
@@ -38,55 +38,56 @@ public:
   static_assert(
       std::is_same<typename std::invoke_result<Action>::type, void>::value,
       "Action should return void.");
+  static_assert(std::is_same<Guard, typename GuardContainer::value_type>::value,
+                "GuardContainer should be Container of Guards.");
+  static_assert(
+      std::is_same<Action, typename ActionContainer::value_type>::value,
+      "ActionContainer should be Container of Actions.");
 
-  struct Transition {
-    Event event;
-    std::vector<Guard> guards;
-    std::vector<Action> actions;
-    State target;
+  using StateType = State;
+  using EventType = Event;
 
-    constexpr bool checkGuards() const {
-      return std::all_of(guards.begin(), guards.end(),
-                         [](const Guard &g) { return g(); });
+  State source;
+  Event event;
+  GuardContainer guards;
+  ActionContainer actions;
+  State target;
+
+  constexpr bool checkGuards() const {
+    return std::all_of(guards.begin(), guards.end(),
+                       [](const Guard &g) { return g(); });
+  }
+
+  constexpr void executeActions() const {
+    for (const auto &a : actions) {
+      a();
     }
+  }
+};
 
-    constexpr void executeActions() const {
-      for (const auto &a : actions) {
-        a();
-      }
-    }
-  };
-
-  using TransitionList = std::vector<Transition>;
-  using TransitionMatrix =
-      std::array<TransitionList, static_cast<std::size_t>(State::NUM_STATES)>;
-
+template <typename TransitionContainer> class StateMachine {
 private:
-  const TransitionMatrix transitionMatrix;
-  State current_state = State::INITIAL;
+  using Transition = typename TransitionContainer::value_type;
+  using State = typename Transition::StateType;
+  using Event = typename Transition::EventType;
 
-  constexpr std::size_t getCurrentStateIndex() const {
-    return static_cast<std::size_t>(current_state);
-  }
-
-  constexpr const TransitionList &getTransitionsFromCurrentState() const {
-    return transitionMatrix[getCurrentStateIndex()];
-  }
+  const TransitionContainer transitions;
+  State current_state;
 
 public:
-  constexpr StateMachine(TransitionMatrix transitionMatrix)
-      : transitionMatrix(transitionMatrix) {}
+  constexpr StateMachine(TransitionContainer transitions, State initialState)
+      : transitions(transitions), current_state(initialState) {}
 
   constexpr State getState() const { return current_state; }
 
   void trigger(Event event) {
-    const auto tList = getTransitionsFromCurrentState();
-    const auto it =
-        std::find_if(tList.begin(), tList.end(), [&event](const Transition &t) {
-          return t.event == event && t.checkGuards();
-        });
+    const auto it = std::find_if(transitions.begin(), transitions.end(),
+                                 [&event, this](const Transition &t) {
+                                   return t.source == current_state &&
+                                          t.event == event && t.checkGuards();
+                                 });
 
-    if (it != tList.end()) {
+    if (it != transitions.end()) {
       const auto &t = *it;
       t.executeActions();
       current_state = t.target;
