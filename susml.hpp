@@ -22,8 +22,8 @@ namespace susml {
 
 // Transition is defined separately outside of Statemachine, such that the user
 // can specify what TransitionContainer to use in StateMachine.
-template <typename State,               // Should be enum with items for states
-          typename Event,               // Should be enum with items for events
+template <typename State,               // must be static_cast-able to int
+          typename Event,               // must be static_cast-able to int
           typename Guard = bool (*)(),  // Should be invocable bool()
           typename Action = void (*)(), // should be invocable void()
           typename GuardContainer =
@@ -31,8 +31,6 @@ template <typename State,               // Should be enum with items for states
           typename ActionContainer =
               std::vector<Action>> // should be Container of Action
 struct Transition {
-  static_assert(std::is_enum<State>::value, "State should be enum");
-  static_assert(std::is_enum<Event>::value, "Event should be enum");
   static_assert(std::is_invocable<Guard>::value, "Guard should be invocable");
   static_assert(std::is_invocable<Action>::value, "Action should be invocable");
   static_assert(
