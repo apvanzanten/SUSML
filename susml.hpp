@@ -89,6 +89,8 @@ public:
 
   constexpr State getState() const { return current_state; }
 
+  constexpr auto getNumTransitions() const { return transitions.size(); }
+
   void trigger(Event event) {
     const auto it = std::find_if(transitions.begin(), transitions.end(),
                                  [&event, this](const Transition &t) {
