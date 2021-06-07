@@ -26,10 +26,8 @@ template <typename State,               // must be static_cast-able to int
           typename Event,               // must be static_cast-able to int
           typename Guard = bool (*)(),  // Should be invocable bool()
           typename Action = void (*)(), // should be invocable void()
-          typename GuardContainer =
-              std::vector<Guard>, // should be Container of Guard
-          typename ActionContainer =
-              std::vector<Action>> // should be Container of Action
+          typename GuardContainer = std::vector<Guard>,
+          typename ActionContainer = std::vector<Action>>
 struct Transition {
   static_assert(std::is_invocable<Guard>::value, "Guard should be invocable");
   static_assert(std::is_invocable<Action>::value, "Action should be invocable");
@@ -60,9 +58,30 @@ struct Transition {
   }
 
   constexpr void executeActions() const {
-    for (const auto &a : actions) {
-      a();
-    }
+    std::for_each(actions.begin(), actions.end(), [](const Action &a) { a(); });
+  }
+
+  constexpr static Transition from(State source) {
+    Transition t{};
+    t.source = source;
+    return t;
+  }
+
+  constexpr Transition &to(State target) {
+    this->target = target;
+    return *this;
+  }
+  constexpr Transition &triggeredBy(Event event) {
+    this->event = event;
+    return *this;
+  }
+  constexpr Transition &guardedBy(GuardContainer guards) {
+    this->guards = std::move(guards);
+    return *this;
+  }
+  constexpr Transition &calls(ActionContainer actions) {
+    this->actions = std::move(actions);
+    return *this;
   }
 };
 
@@ -80,29 +99,44 @@ private:
   using State = typename Transition::StateType;
   using Event = typename Transition::EventType;
 
-  const TransitionContainer transitions;
-  State current_state;
+  TransitionContainer mTransitions;
+  State mState;
 
 public:
+  constexpr StateMachine() = default;
+  constexpr StateMachine(const StateMachine &other) = default;
+  constexpr StateMachine(StateMachine &&other) = default;
+  constexpr StateMachine &operator=(const StateMachine &other) = default;
+  constexpr StateMachine &operator=(StateMachine &&other) = default;
+
   constexpr StateMachine(TransitionContainer transitions, State initialState)
-      : transitions(transitions), current_state(initialState) {}
+      : mTransitions(std::move(transitions)), mState(initialState) {}
 
-  constexpr State getState() const { return current_state; }
+  constexpr State state() const { return mState; }
+  constexpr const auto &transitions() const { return mTransitions; }
 
-  constexpr auto getNumTransitions() const { return transitions.size(); }
-
-  void trigger(Event event) {
-    const auto it = std::find_if(transitions.begin(), transitions.end(),
+  constexpr void trigger(Event event) {
+    const auto it = std::find_if(mTransitions.begin(), mTransitions.end(),
                                  [&event, this](const Transition &t) {
-                                   return t.source == current_state &&
+                                   return t.source == mState &&
                                           t.event == event && t.checkGuards();
                                  });
 
-    if (it != transitions.end()) {
+    if (it != mTransitions.end()) {
       const auto &t = *it;
       t.executeActions();
-      current_state = t.target;
+      mState = t.target;
     }
+  }
+
+  constexpr static StateMachine withInitialState(State initialState) {
+    StateMachine m{};
+    m.mState = initialState;
+    return m;
+  }
+  constexpr StateMachine &withTransitions(TransitionContainer transitions) {
+    mTransitions = std::move(transitions);
+    return *this;
   }
 };
 } // namespace susml
