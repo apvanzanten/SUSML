@@ -36,3 +36,5 @@
 
 # built directories
 build
+.cache
+
