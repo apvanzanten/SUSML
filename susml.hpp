@@ -45,6 +45,10 @@ struct Transition {
 
   using StateType = State;
   using EventType = Event;
+  using GuardType = Guard;
+  using ActionType = Action;
+  using GuardContainerType = GuardContainer;
+  using ActionContainerType = ActionContainer;
 
   State source;
   Event event;
@@ -92,13 +96,16 @@ class StateMachine {
       std::is_same<Transition, typename TransitionContainer::value_type>::value,
       "TransitionContainer should be Container of Transition");
 
-public:
-  using TransitionContainerType = TransitionContainer;
-
-private:
   using State = typename Transition::StateType;
   using Event = typename Transition::EventType;
 
+public:
+  using StateType = State;
+  using EventType = Event;
+  using TransitionType = Transition;
+  using TransitionContainerType = TransitionContainer;
+
+private:
   TransitionContainer mTransitions;
   State mState;
 
@@ -117,7 +124,7 @@ public:
 
   constexpr void trigger(Event event) {
     const auto it = std::find_if(mTransitions.begin(), mTransitions.end(),
-                                 [&event, this](const Transition &t) {
+                                 [event, this](const Transition &t) {
                                    return t.source == mState &&
                                           t.event == event && t.checkGuards();
                                  });
