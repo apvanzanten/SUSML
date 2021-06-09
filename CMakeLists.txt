@@ -41,3 +41,8 @@ add_executable(CompositeGTest ${TEST_DIR}/composite.gtest.cpp)
 target_include_directories(CompositeGTest PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(CompositeGTest ${GTEST_BOTH_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 add_test(allCompositeGTests CompositeGTest)
+
+add_executable(FactoryGTest ${TEST_DIR}/factory.gtest.cpp)
+target_include_directories(FactoryGTest PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(FactoryGTest ${GTEST_BOTH_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+add_test(allFactoryGTests FactoryGTest)

@@ -68,78 +68,31 @@ auto createBasicMachine() {
       INITIAL_STATE};
 }
 
-auto createBasicMachineByFluentAPI() {
-  return StateMachine::withInitialState(INITIAL_STATE)
-      .withTransitions({Transition::from(State::off)
-                            .to(State::on)
-                            .triggeredBy(Event::turnOn)
-                            .guardedBy({Guards::unitGuard})
-                            .calls({Actions::unitAction, Actions::unitAction}),
-                        Transition::from(State::on)
-                            .to(State::off)
-                            .triggeredBy(Event::turnOff)
-                            .guardedBy({Guards::unitGuard})
-                            .calls({Actions::unitAction}),
-                        Transition::from(State::on)
-                            .to(State::on)
-                            .triggeredBy(Event::turnOn)
-                            .calls({Actions::unitAction})});
-}
-
 TEST(BasicTest, GoodWeather) {
   auto m = createBasicMachine();
   Guards::numUnitGuardCalled = 0;
   Actions::numUnitActionCalled = 0;
 
-  EXPECT_EQ(m.state(), INITIAL_STATE);
-  EXPECT_EQ(m.state(), State::off);
+  EXPECT_EQ(m.currentState, INITIAL_STATE);
+  EXPECT_EQ(m.currentState, State::off);
 
   m.trigger(Event::turnOn);
-  EXPECT_EQ(m.state(), State::on);
+  EXPECT_EQ(m.currentState, State::on);
   EXPECT_EQ(Guards::numUnitGuardCalled, 1);
   EXPECT_EQ(Actions::numUnitActionCalled, 2);
 
   m.trigger(Event::turnOn);
-  EXPECT_EQ(m.state(), State::on);
+  EXPECT_EQ(m.currentState, State::on);
   EXPECT_EQ(Guards::numUnitGuardCalled, 1);
   EXPECT_EQ(Actions::numUnitActionCalled, 3);
 
   m.trigger(Event::turnOff);
-  EXPECT_EQ(m.state(), State::off);
+  EXPECT_EQ(m.currentState, State::off);
   EXPECT_EQ(Guards::numUnitGuardCalled, 2);
   EXPECT_EQ(Actions::numUnitActionCalled, 4);
 
   m.trigger(Event::turnOff);
-  EXPECT_EQ(m.state(), State::off);
-  EXPECT_EQ(Guards::numUnitGuardCalled, 2);
-  EXPECT_EQ(Actions::numUnitActionCalled, 4);
-}
-
-TEST(BasicTest, GoodWeatherFluent) {
-  auto m = createBasicMachineByFluentAPI();
-  Guards::numUnitGuardCalled = 0;
-  Actions::numUnitActionCalled = 0;
-
-  EXPECT_EQ(m.state(), INITIAL_STATE);
-  EXPECT_EQ(m.state(), State::off);
-
-  m.trigger(Event::turnOn);
-  EXPECT_EQ(m.state(), State::on);
-  EXPECT_EQ(Guards::numUnitGuardCalled, 1);
-  EXPECT_EQ(Actions::numUnitActionCalled, 2);
-
-  m.trigger(Event::turnOn);
-  EXPECT_EQ(m.state(), State::on);
-  EXPECT_EQ(Guards::numUnitGuardCalled, 1);
-  EXPECT_EQ(Actions::numUnitActionCalled, 3);
-
-  m.trigger(Event::turnOff);
-  EXPECT_EQ(m.state(), State::off);
-  EXPECT_EQ(Guards::numUnitGuardCalled, 2);
-  EXPECT_EQ(Actions::numUnitActionCalled, 4);
-
-  m.trigger(Event::turnOff);
-  EXPECT_EQ(m.state(), State::off);
+  EXPECT_EQ(m.currentState, State::off);
   EXPECT_EQ(Guards::numUnitGuardCalled, 2);
   EXPECT_EQ(Actions::numUnitActionCalled, 4);
 }

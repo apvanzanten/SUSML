@@ -32,38 +32,43 @@ TEST(CompositeTests, controllerAndSubsystem) {
         susml::Transition<SubsystemState, SubsystemEvent, Guard, Action>>;
 
     // forward declaration to allow references to eachother
-    Subsystem subsys =
-        Subsystem::withInitialState(SubsystemState::off)
-            .withTransitions({
-                Subsystem::TransitionType::from(SubsystemState::off)
-                    .to(SubsystemState::idle)
-                    .triggeredBy(SubsystemEvent::turnOn),
-                Subsystem::TransitionType::from(SubsystemState::idle)
-                    .to(SubsystemState::running)
-                    .triggeredBy(SubsystemEvent::run),
-                Subsystem::TransitionType::from(SubsystemState::running)
-                    .to(SubsystemState::idle)
-                    .triggeredBy(SubsystemEvent::finish),
-                Subsystem::TransitionType::from(SubsystemState::idle)
-                    .to(SubsystemState::off)
-                    .triggeredBy(SubsystemEvent::turnOff),
-            });
+    Subsystem subsys{{
+                         {SubsystemState::off,
+                          SubsystemEvent::turnOn,
+                          {}, // no guard
+                          {}, // no action
+                          SubsystemState::idle},
+                         {SubsystemState::idle,
+                          SubsystemEvent::run,
+                          {}, // no guard
+                          {}, // no action
+                          SubsystemState::running},
+                         {SubsystemState::running,
+                          SubsystemEvent::finish,
+                          {}, // no guard
+                          {}, // no action
+                          SubsystemState::idle},
+                         {SubsystemState::idle,
+                          SubsystemEvent::turnOff,
+                          {}, // no guard
+                          {}, // no action
+                          SubsystemState::off},
+                     },
+                     SubsystemState::off};
 
-    Controller ctrl =
-        Controller::withInitialState(ControllerState::off)
-            .withTransitions(
-                {Controller::TransitionType::from(ControllerState::off)
-                     .to(ControllerState::on)
-                     .triggeredBy(ControllerEvent::turnOn)
-                     .calls({[&] { subsys.trigger(SubsystemEvent::turnOn); }}),
-                 Controller::TransitionType::from(ControllerState::on)
-                     .to(ControllerState::off)
-                     .triggeredBy(ControllerEvent::turnOff)
-                     .guardedBy({[&]() -> bool {
-                       return subsys.state() == SubsystemState::idle;
-                     }})
-                     .calls(
-                         {[&] { subsys.trigger(SubsystemEvent::turnOff); }})});
+    Controller ctrl{{{ControllerState::off,
+                      ControllerEvent::turnOn,
+                      {}, // no guards
+                      {[&] { subsys.trigger(SubsystemEvent::turnOn); }},
+                      ControllerState::on},
+                     {ControllerState::on,
+                      ControllerEvent::turnOff,
+                      {[&]() -> bool {
+                        return subsys.currentState == SubsystemState::idle;
+                      }},
+                      {[&] { subsys.trigger(SubsystemEvent::turnOff); }},
+                      ControllerState::off}},
+                    ControllerState::off};
   } system;
 
   using CtrlState = System::ControllerState;
@@ -72,22 +77,22 @@ TEST(CompositeTests, controllerAndSubsystem) {
   using SubSEvent = System::SubsystemEvent;
 
   system.ctrl.trigger(CtrlEvent::turnOn);
-  EXPECT_EQ(CtrlState::on, system.ctrl.state());
-  EXPECT_EQ(SubSState::idle, system.subsys.state());
+  EXPECT_EQ(CtrlState::on, system.ctrl.currentState);
+  EXPECT_EQ(SubSState::idle, system.subsys.currentState);
 
   system.subsys.trigger(SubSEvent::run);
-  EXPECT_EQ(SubSState::running, system.subsys.state());
+  EXPECT_EQ(SubSState::running, system.subsys.currentState);
 
   system.ctrl.trigger(CtrlEvent::turnOff);
-  EXPECT_EQ(CtrlState::on, system.ctrl.state());
-  EXPECT_EQ(SubSState::running, system.subsys.state());
+  EXPECT_EQ(CtrlState::on, system.ctrl.currentState);
+  EXPECT_EQ(SubSState::running, system.subsys.currentState);
 
   system.subsys.trigger(SubSEvent::finish);
-  EXPECT_EQ(SubSState::idle, system.subsys.state());
+  EXPECT_EQ(SubSState::idle, system.subsys.currentState);
 
   system.ctrl.trigger(CtrlEvent::turnOff);
-  EXPECT_EQ(CtrlState::off, system.ctrl.state());
-  EXPECT_EQ(SubSState::off, system.subsys.state());
+  EXPECT_EQ(CtrlState::off, system.ctrl.currentState);
+  EXPECT_EQ(SubSState::off, system.subsys.currentState);
 }
 
 int main(int argc, char **argv) {
