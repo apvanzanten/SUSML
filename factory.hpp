@@ -15,6 +15,7 @@
 #include "susml.hpp"
 #include <initializer_list>
 #include <type_traits>
+#include <vector>
 
 namespace susml::factory {
 struct NoneType {

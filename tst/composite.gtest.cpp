@@ -23,13 +23,19 @@ TEST(CompositeTests, controllerAndSubsystem) {
 
     enum class ControllerState { on, off };
     enum class ControllerEvent { turnOn, turnOff };
-    using Controller = susml::StateMachine<
-        susml::Transition<ControllerState, ControllerEvent, Guard, Action>>;
+    using ControllerTransition =
+        susml::Transition<ControllerState, ControllerEvent, Guard, Action,
+                          std::vector<Guard>, std::vector<Action>>;
+    using Controller = susml::StateMachine<ControllerTransition,
+                                           std::vector<ControllerTransition>>;
 
     enum class SubsystemState { off, idle, running };
     enum class SubsystemEvent { turnOn, run, finish, turnOff };
-    using Subsystem = susml::StateMachine<
-        susml::Transition<SubsystemState, SubsystemEvent, Guard, Action>>;
+    using SubsystemTransition =
+        susml::Transition<SubsystemState, SubsystemEvent, Guard, Action,
+                          std::vector<Guard>, std::vector<Action>>;
+    using Subsystem = susml::StateMachine<SubsystemTransition,
+                                          std::vector<SubsystemTransition>>;
 
     // forward declaration to allow references to eachother
     Subsystem subsys{{

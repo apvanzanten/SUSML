@@ -14,19 +14,16 @@
 #ifndef SUSML_HPP
 #define SUSML_HPP
 
-#include <algorithm>
 #include <type_traits>
-#include <vector>
 
 namespace susml {
 
 // Transition is defined separately outside of Statemachine, such that the user
 // can specify what TransitionContainer to use in StateMachine.
 template <typename StateT, typename EventT,
-          typename GuardT = bool (*)(),  // must be invocable bool()
-          typename ActionT = void (*)(), // must be invocable void()
-          typename GuardContainerT = std::vector<GuardT>,
-          typename ActionContainerT = std::vector<ActionT>>
+          typename GuardT,  // must be invocable bool()
+          typename ActionT, // must be invocable void()
+          typename GuardContainerT, typename ActionContainerT>
 struct Transition {
   using State = StateT;
   using Event = EventT;
@@ -56,17 +53,21 @@ struct Transition {
   State target;
 
   constexpr bool checkGuards() const {
-    return std::all_of(guards.begin(), guards.end(),
-                       [](const Guard &g) { return g(); });
+    for (const auto &g : guards) {
+      if (!g())
+        return false;
+    }
+    return true;
   }
 
-  constexpr void executeActions() const {
-    std::for_each(actions.begin(), actions.end(), [](const Action &a) { a(); });
+  constexpr void executeActions() {
+    for (auto &a : actions) {
+      a();
+    }
   }
 };
 
-template <typename TransitionT,
-          typename TransitionContainerT = std::vector<TransitionT>>
+template <typename TransitionT, typename TransitionContainerT>
 struct StateMachine {
   using Transition = TransitionT;
   using State = typename Transition::State;
@@ -81,16 +82,12 @@ struct StateMachine {
   State currentState;
 
   constexpr void trigger(const Event &event) {
-    const auto it = std::find_if(transitions.begin(), transitions.end(),
-                                 [&](const Transition &t) {
-                                   return t.source == currentState &&
-                                          t.event == event && t.checkGuards();
-                                 });
-
-    if (it != transitions.end()) {
-      const auto &t = *it;
-      t.executeActions();
-      currentState = t.target;
+    for (auto &t : transitions) {
+      if (t.source == currentState && t.event == event && t.checkGuards()) {
+        t.executeActions();
+        currentState = t.target;
+        return;
+      }
     }
   }
 };
