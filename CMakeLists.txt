@@ -46,3 +46,8 @@ add_executable(FactoryGTest ${TEST_DIR}/factory.gtest.cpp)
 target_include_directories(FactoryGTest PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(FactoryGTest ${GTEST_BOTH_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 add_test(allFactoryGTests FactoryGTest)
+
+add_executable(OptimizedGTest ${TEST_DIR}/optimized.gtest.cpp)
+target_include_directories(OptimizedGTest PUBLIC ${PROJECT_SOURCE_DIR})
+target_link_libraries(OptimizedGTest ${GTEST_BOTH_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+add_test(allOptimizedGTests OptimizedGTest)
