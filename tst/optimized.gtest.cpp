@@ -198,7 +198,44 @@ TEST(TransitionTests, multipleActions) {
   EXPECT_EQ("hello", valC);
 }
 
+TEST(TransitionTests, multipleActionsExeuctionOrder) {
+  using susml::optimized::Transition;
 
+  std::vector<int> out{};
+
+  auto pushZero = [&out] { out.push_back(0); };
+  auto pushOne = [&out] { out.push_back(1); };
+  auto pushTwo = [&out] { out.push_back(2); };
+  auto pushThree = [&out] { out.push_back(3); };
+
+  {
+    auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
+                                // states and events for this test
+                        std::tuple<>(),
+                        std::make_tuple(pushZero, pushOne, pushTwo, pushThree)};
+
+    ASSERT_TRUE(out.empty());
+
+    t.executeActions();
+    EXPECT_EQ((std::vector{0,1,2,3}), out);
+
+    out.clear();
+  }
+
+  {
+    auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
+                                // states and events for this test
+                        std::tuple<>(),
+                        std::make_tuple(pushOne, pushZero, pushOne, pushThree)};
+
+    ASSERT_TRUE(out.empty());
+
+    t.executeActions();
+    EXPECT_EQ((std::vector{1,0,1,3}), out);
+
+    out.clear();
+  }
+}
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);

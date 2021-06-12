@@ -77,25 +77,6 @@ template <typename ActionTuple> constexpr bool isActionTupleType() {
 }
 } // namespace validate
 
-namespace evaluate {
-/* Action execution
- */
-constexpr void executeActions() {}
-
-template <typename FirstAction, typename... OtherActions>
-constexpr void executeActions(FirstAction &a, OtherActions &...as) {
-  a();
-  executeActions(as...);
-}
-
-template <typename... Actions>
-constexpr void executeActionTuple(std::tuple<Actions...> &actions) {
-  if constexpr (sizeof...(Actions) > 0) {
-    std::apply(executeActions<Actions...>, actions);
-  }
-}
-} // namespace evaluate
-
 template <typename StateT, typename EventT, typename GuardsT = std::tuple<>,
           typename ActionsT = std::tuple<>>
 class Transition {
@@ -131,10 +112,10 @@ public:
   constexpr bool checkGuards() const {
     return std::apply([&](const auto &...g) { return (... & g()); }, guards);
   }
-  constexpr void executeActions() { evaluate::executeActionTuple(actions); }
+  constexpr void executeActions() {
+    std::apply([&](auto &...a) { (..., a()); }, actions);
+  }
 };
-
-// TODO test!
 
 // TODO StateMachine with Transitions tuple
 
