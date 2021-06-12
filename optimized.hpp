@@ -21,6 +21,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace susml::optimized {
 
@@ -111,7 +112,7 @@ struct Transition {
   constexpr Transition &operator=(Transition &&other) = default;
 
   constexpr bool checkGuards() const {
-    return std::apply([&](const auto &...g) { return (... & g()); }, guards);
+    return std::apply([&](const auto &...g) { return (... && g()); }, guards);
   }
   constexpr void executeActions() {
     std::apply([&](auto &...a) { (..., a()); }, actions);
@@ -171,60 +172,113 @@ constexpr bool isValidTransitionTupleType() {
 
 } // namespace validate
 
+namespace utility {
+template <typename Tuple, std::size_t... Indices>
+constexpr auto tailImpl(const Tuple &tuple,
+                        const std::index_sequence<Indices...> &) {
+  return std::make_tuple(std::get<(Indices + 1)>(tuple)...);
+}
+
+template <typename... ElementTypes>
+constexpr auto tail(const std::tuple<ElementTypes...> &tuple) {
+  constexpr auto numElements = sizeof...(ElementTypes);
+  constexpr auto indices =
+      std::make_index_sequence<((numElements == 0) ? 0 : numElements - 1)>();
+  return tailImpl(tuple, indices);
+}
+} // namespace utility
+
 template <typename TransitionsT> struct StateMachine {
-public:
   static_assert(validate::isValidTransitionTupleType<TransitionsT>(),
                 "All elements of TransitionsT should be Transitions with same "
                 "State type and Event type.");
 
+  // TODO figure out way to not break on a zero-transition machine
   using TransitionTuple = TransitionsT;
   using FirstTransition = typename std::tuple_element<0, TransitionTuple>::type;
   using State = typename FirstTransition::State;
   using Event = typename FirstTransition::Event;
 
   template <typename TransitionTuple, std::size_t... Indices>
-  static constexpr auto getAllSourcesImpl(const TransitionTuple & transitions, const std::index_sequence<Indices...> &) {
+  static constexpr auto
+  getAllSourcesImpl(const TransitionTuple &transitions,
+                    const std::index_sequence<Indices...> &) {
     constexpr auto numTransitions = sizeof...(Indices);
     return std::array<State, numTransitions>{
-      std::get<Indices>(transitions).source...
-    }; 
+        std::get<Indices>(transitions).source...};
   }
 
-  static constexpr auto getAllSources(const TransitionTuple & transitions) {
-    constexpr auto indices = std::make_index_sequence<std::tuple_size<TransitionTuple>::value>();
+  static constexpr auto getAllSources(const TransitionTuple &transitions) {
+    constexpr auto indices =
+        std::make_index_sequence<std::tuple_size<TransitionTuple>::value>();
     return getAllSourcesImpl(transitions, indices);
   }
 
   template <typename TransitionTuple, std::size_t... Indices>
-  static constexpr auto getAllEventsImpl(const TransitionTuple & transitions, const std::index_sequence<Indices...> &) {
+  static constexpr auto
+  getAllEventsImpl(const TransitionTuple &transitions,
+                   const std::index_sequence<Indices...> &) {
     constexpr auto numTransitions = sizeof...(Indices);
     return std::array<Event, numTransitions>{
-      std::get<Indices>(transitions).event...
-    }; 
+        std::get<Indices>(transitions).event...};
   }
 
-  static constexpr auto getAllEvents(const TransitionTuple & transitions) {
-    constexpr auto indices = std::make_index_sequence<std::tuple_size<TransitionTuple>::value>();
+  static constexpr auto getAllEvents(const TransitionTuple &transitions) {
+    constexpr auto indices =
+        std::make_index_sequence<std::tuple_size<TransitionTuple>::value>();
     return getAllEventsImpl(transitions, indices);
   }
 
-  const std::array<State, std::tuple_size<TransitionTuple>::value> sources;
-  const std::array<Event, std::tuple_size<TransitionTuple>::value> events;
+  template <typename Transition>
+  static constexpr bool isTakeableTransition(const Transition &transition,
+                                             const State &source,
+                                             const Event &event) {
+    return transition.source == source && transition.event == event &&
+           transition.checkGuards();
+  }
+
+  template <typename Transition>
+  static constexpr std::tuple<bool, State>
+  takeTransitionIfAble(Transition &transition, const State &source,
+                       const Event &event) {
+    const bool isTakeable = isTakeableTransition(transition, source, event);
+    if (isTakeable) {
+      transition.executeActions();
+      return {true, transition.target};
+    }
+    return {false, source};
+  }
+
+  template <typename FirstTransition, typename... OtherTransitions>
+  static constexpr State
+  triggerImpl(std::tuple<FirstTransition, OtherTransitions...> &transitions,
+              const State &source, const Event &event) {
+    constexpr std::size_t numTransitions = std::tuple_size<
+        typename std::remove_reference<decltype(transitions)>::type>::value;
+    if constexpr (numTransitions > 0) {
+      auto first = std::get<0>(transitions);
+      const auto &[isFirstTaken, newState] =
+          takeTransitionIfAble(first, source, event);
+      if (isFirstTaken) {
+        return newState;
+      }
+      if constexpr(numTransitions > 1) {
+        std::tuple otherTransitions = utility::tail(transitions);
+        return StateMachine::triggerImpl(otherTransitions, source, event);
+      }
+    }
+    return source;
+  }
 
   TransitionTuple transitions;
   State currentState;
 
-// private:
-//   static constexpr std::size_t checkForValidTransition(TransitionTuple State source,
-//                                                 Event event) {
-                                                  
-//                                                 }
-
-// public:
-//   constexpr void trigger(const Event &event) {}
-
-
-
+public:
+  constexpr void trigger(const Event &event) {
+    if constexpr (std::tuple_size<TransitionTuple>::value > 0) {
+      currentState = StateMachine::triggerImpl(transitions, currentState, event);
+    }
+  }
 };
 
 } // namespace susml::optimized

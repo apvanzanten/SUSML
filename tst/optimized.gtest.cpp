@@ -150,6 +150,8 @@ TEST(TransitionTests, basic) {
   EXPECT_EQ(State::off, t.source);
   EXPECT_EQ(State::on, t.target);
   EXPECT_EQ(Event::turnOn, t.event);
+
+  EXPECT_TRUE(t.checkGuards());
 }
 
 TEST(TransitionTests, basicWithGuard) {
@@ -317,6 +319,194 @@ TEST(StateMachineTests, constructEventArray) {
             StateMachine::getAllEvents(std::make_tuple(t1, t2, t3, t4)));
   EXPECT_EQ((std::array{2, 4, 3, 1}),
             StateMachine::getAllEvents(std::make_tuple(t2, t4, t3, t1)));
+}
+
+TEST(UtilityTests, tupleTail) {
+  using susml::optimized::utility::tail;
+
+  EXPECT_EQ(std::make_tuple(2, 3), tail(std::make_tuple(1, 2, 3)));
+  EXPECT_EQ(std::make_tuple(2), tail(std::make_tuple(1, 2)));
+  EXPECT_EQ(std::make_tuple(), tail(std::make_tuple(1)));
+  EXPECT_EQ(std::make_tuple(), tail(std::make_tuple()));
+}
+
+TEST(StateMachineTests, isTransitionTakeableBasic) {
+  enum class State { on, off };
+  enum class Event { turnOn, turnOff };
+
+  using Transition = susml::optimized::Transition<State, Event>;
+  using StateMachine =
+      susml::optimized::StateMachine<std::tuple<Transition, Transition>>;
+
+  Transition onToOff(State::on, State::off, Event::turnOff);
+  Transition offToOn(State::off, State::on, Event::turnOn);
+
+  EXPECT_TRUE(
+      StateMachine::isTakeableTransition(onToOff, State::on, Event::turnOff));
+  EXPECT_TRUE(
+      StateMachine::isTakeableTransition(offToOn, State::off, Event::turnOn));
+
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(onToOff, State::on, Event::turnOn));
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(onToOff, State::off, Event::turnOff));
+
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(offToOn, State::off, Event::turnOff));
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(offToOn, State::on, Event::turnOn));
+}
+
+TEST(StateMachineTests, isTransitionTakeableWithGuards) {
+  enum class State { on, off };
+  enum class Event { turnOn, turnOff };
+
+  using namespace susml;
+
+  bool readyForOn = false;
+  bool readyForOff = false;
+
+  optimized::Transition offToOn(State::off, State::on, Event::turnOn,
+                                std::make_tuple([&] { return readyForOn; }));
+  optimized::Transition onToOff(State::on, State::off, Event::turnOff,
+                                std::make_tuple([&] { return readyForOff; }));
+
+  using StateMachine = susml::optimized::StateMachine<
+      std::tuple<decltype(onToOff), decltype(offToOn)>>;
+
+  ASSERT_FALSE(readyForOn);
+  ASSERT_FALSE(readyForOff);
+
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(offToOn, State::off, Event::turnOn));
+
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(onToOff, State::on, Event::turnOn));
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(onToOff, State::off, Event::turnOff));
+
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(offToOn, State::off, Event::turnOff));
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(offToOn, State::on, Event::turnOn));
+
+  readyForOn = true;
+  EXPECT_TRUE(
+      StateMachine::isTakeableTransition(offToOn, State::off, Event::turnOn));
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(onToOff, State::on, Event::turnOff));
+
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(onToOff, State::on, Event::turnOn));
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(onToOff, State::off, Event::turnOff));
+
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(offToOn, State::off, Event::turnOff));
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(offToOn, State::on, Event::turnOn));
+
+  readyForOff = true;
+  EXPECT_TRUE(
+      StateMachine::isTakeableTransition(offToOn, State::off, Event::turnOn));
+  EXPECT_TRUE(
+      StateMachine::isTakeableTransition(onToOff, State::on, Event::turnOff));
+
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(onToOff, State::on, Event::turnOn));
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(onToOff, State::off, Event::turnOff));
+
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(offToOn, State::off, Event::turnOff));
+  EXPECT_FALSE(
+      StateMachine::isTakeableTransition(offToOn, State::on, Event::turnOn));
+}
+
+
+TEST(StateMachineTests, basicTransition) {
+
+  enum class State { on, off };
+  enum class Event { turnOn, turnOff };
+
+  using Transition = susml::optimized::Transition<State, Event>;
+  using StateMachine =
+      susml::optimized::StateMachine<std::tuple<Transition, Transition>>;
+
+  Transition onToOff(State::on, State::off, Event::turnOff);
+  Transition offToOn(State::off, State::on, Event::turnOn);
+
+  StateMachine m{std::make_tuple(offToOn, onToOff), State::off};
+
+  ASSERT_EQ(State::off, m.currentState);
+
+  m.trigger(Event::turnOff); // already off, state won't change
+  EXPECT_EQ(State::off, m.currentState);
+
+
+  m.trigger(Event::turnOn); 
+  EXPECT_EQ(State::on, m.currentState);
+
+  m.trigger(Event::turnOn); // already on, state won't change
+  EXPECT_EQ(State::on, m.currentState);
+
+  m.trigger(Event::turnOff);
+  EXPECT_EQ(State::off, m.currentState);
+}
+
+TEST(StateMachineTests, transitionWithGaurdAndActions) {
+  enum class State { on, off };
+  enum class Event { turnOn, turnOff };
+
+  using namespace susml;
+
+  bool readyForOn = false;
+  bool readyForOff = false;
+
+  std::vector<std::string> reports;
+
+  optimized::Transition offToOn(
+      State::off, State::on, Event::turnOn,
+      std::make_tuple([&] { return readyForOn; }),
+      std::make_tuple([&] { reports.push_back("turnOn"); }));
+  optimized::Transition onToOff(
+      State::on, State::off, Event::turnOff,
+      std::make_tuple([&] { return readyForOff; }),
+      std::make_tuple([&] { reports.push_back("turnOff"); }));
+
+  auto transitions = std::make_tuple(offToOn, onToOff);
+
+  using StateMachine = susml::optimized::StateMachine<decltype(transitions)>;
+
+  StateMachine m{transitions, State::off};
+
+  ASSERT_FALSE(readyForOn);
+  ASSERT_FALSE(readyForOff);
+  ASSERT_EQ(State::off, m.currentState);
+
+  m.trigger(Event::turnOff); // wrong event
+  EXPECT_EQ(State::off, m.currentState);
+
+  m.trigger(Event::turnOn); // right event, but readyForOn is false
+  EXPECT_EQ(State::off, m.currentState);
+
+  readyForOn = true;
+
+  m.trigger(Event::turnOn); // right event and readyForOn is true
+  EXPECT_EQ(State::on, m.currentState);
+  EXPECT_EQ(1, reports.size());
+  EXPECT_EQ("turnOn", reports.back());
+
+  m.trigger(Event::turnOff); // right event but readyForOff is false
+  EXPECT_EQ(State::on, m.currentState);
+  EXPECT_EQ(1, reports.size());
+
+  readyForOff = true;
+
+  m.trigger(Event::turnOff); // right event and readyForOff is true
+  EXPECT_EQ(State::off, m.currentState);
+  EXPECT_EQ(2, reports.size());
+  EXPECT_EQ("turnOff", reports.back());
 }
 
 int main(int argc, char **argv) {
