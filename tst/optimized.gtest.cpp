@@ -21,7 +21,7 @@ bool trueGuard() { return true; }
 
 void noneAction() {}
 
-TEST(ValidityTests, guards) {
+TEST(ValidationTests, guards) {
   using susml::optimized::validate::isGuardTupleType;
   using susml::optimized::validate::isGuardType;
 
@@ -57,7 +57,7 @@ TEST(ValidityTests, guards) {
                                    decltype(invalidGuardWithCapture)>>()));
 }
 
-TEST(ValidityTests, actions) {
+TEST(ValidationTests, actions) {
   using susml::optimized::validate::isActionTupleType;
   using susml::optimized::validate::isActionType;
 
@@ -91,6 +91,54 @@ TEST(ValidityTests, actions) {
                                     decltype(invalidActionWithCapture)>>()));
 }
 
+TEST(ValidationTests, transitions) {
+  using susml::optimized::Transition;
+  using susml::optimized::validate::isTransitionType;
+
+  enum class State { a, b, c };
+  enum class Event { x, y, z };
+
+  auto someGuard = [] { return true; };
+  auto someAction = [] {};
+
+  EXPECT_TRUE(
+      (isTransitionType<Transition<int, int, std::tuple<>, std::tuple<>>>()));
+  EXPECT_TRUE((
+      isTransitionType<Transition<State, Event, std::tuple<decltype(someGuard)>,
+                                  std::tuple<decltype(someAction)>>>()));
+
+  EXPECT_FALSE(isTransitionType<int>());
+}
+
+TEST(ValidationTests, transitionTuples) {
+  using susml::optimized::Transition;
+  using susml::optimized::validate::isValidTransitionTupleType;
+
+  EXPECT_TRUE((isValidTransitionTupleType<
+               std::tuple<Transition<int, bool>, Transition<int, bool>>>()));
+
+  EXPECT_FALSE((isValidTransitionTupleType<
+                std::tuple<Transition<int, int>, Transition<int, bool>>>()));
+
+  EXPECT_FALSE((isValidTransitionTupleType<
+                std::tuple<Transition<int, bool>, Transition<int, int>>>()));
+
+  EXPECT_TRUE(
+      (isValidTransitionTupleType<std::tuple<
+           Transition<int, bool, std::tuple<bool (*)()>>,
+           Transition<int, bool, std::tuple<>, std::tuple<void (*)()>>>>()));
+
+  EXPECT_FALSE(
+      (isValidTransitionTupleType<std::tuple<
+           Transition<int, int, std::tuple<bool (*)()>>,
+           Transition<int, bool, std::tuple<>, std::tuple<void (*)()>>>>()));
+
+  EXPECT_FALSE(
+      (isValidTransitionTupleType<std::tuple<
+           Transition<int, bool, std::tuple<bool (*)()>>,
+           Transition<int, int, std::tuple<>, std::tuple<void (*)()>>>>()));
+}
+
 TEST(TransitionTests, basic) {
   using susml::optimized::Transition;
 
@@ -114,8 +162,7 @@ TEST(TransitionTests, basicWithGuard) {
                                // states and events for this test
                       std::make_tuple(getVal)};
 
-  EXPECT_FALSE(t.checkGuards())
-      << "should return false because val is false";
+  EXPECT_FALSE(t.checkGuards()) << "should return false because val is false";
 
   val = true;
   EXPECT_TRUE(t.checkGuards()) << "should return true because val is true";
@@ -129,8 +176,7 @@ TEST(TransitionTests, basicWithAction) {
 
   auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
                                // states and events for this test
-                      std::tuple<>(),
-                      std::make_tuple(setVal)};
+                      std::tuple<>(), std::make_tuple(setVal)};
 
   ASSERT_FALSE(val);
 
@@ -149,17 +195,20 @@ TEST(TransitionTests, multipleGuards) {
   auto isValBGreaterThanZero = [&valB] { return (valB > 0); };
   auto isValCHello = [&valC] { return (valC == "hello"); };
 
-  auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
-                               // states and events for this test
-                      std::make_tuple(getValA, isValBGreaterThanZero, isValCHello)};
+  auto t =
+      Transition{0, 0, 0, // 0 integers because we don't really care about
+                          // states and events for this test
+                 std::make_tuple(getValA, isValBGreaterThanZero, isValCHello)};
 
   EXPECT_FALSE(t.checkGuards()) << "should return false because valA is false";
 
   valA = true;
-  EXPECT_FALSE(t.checkGuards()) << "should return false because valB is not greater than zero";
+  EXPECT_FALSE(t.checkGuards())
+      << "should return false because valB is not greater than zero";
 
   valB = 1;
-  EXPECT_FALSE(t.checkGuards()) << "should return false because valC is not equal to \"hello\".";
+  EXPECT_FALSE(t.checkGuards())
+      << "should return false because valC is not equal to \"hello\".";
 
   valC = "hello";
   EXPECT_TRUE(t.checkGuards());
@@ -169,7 +218,8 @@ TEST(TransitionTests, multipleGuards) {
 
   valA = true;
   valB = 0;
-  EXPECT_FALSE(t.checkGuards()) << "should return false because valB is not greater than zero";
+  EXPECT_FALSE(t.checkGuards())
+      << "should return false because valB is not greater than zero";
 }
 
 TEST(TransitionTests, multipleActions) {
@@ -209,32 +259,64 @@ TEST(TransitionTests, multipleActionsExeuctionOrder) {
   auto pushThree = [&out] { out.push_back(3); };
 
   {
-    auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
-                                // states and events for this test
+    auto t = Transition{0, 0, 0, // 0 integers because we don't really care
+                                 // about states and events for this test
                         std::tuple<>(),
                         std::make_tuple(pushZero, pushOne, pushTwo, pushThree)};
 
     ASSERT_TRUE(out.empty());
 
     t.executeActions();
-    EXPECT_EQ((std::vector{0,1,2,3}), out);
+    EXPECT_EQ((std::vector{0, 1, 2, 3}), out);
 
     out.clear();
   }
 
   {
-    auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
-                                // states and events for this test
+    auto t = Transition{0, 0, 0, // 0 integers because we don't really care
+                                 // about states and events for this test
                         std::tuple<>(),
                         std::make_tuple(pushOne, pushZero, pushOne, pushThree)};
 
     ASSERT_TRUE(out.empty());
 
     t.executeActions();
-    EXPECT_EQ((std::vector{1,0,1,3}), out);
+    EXPECT_EQ((std::vector{1, 0, 1, 3}), out);
 
     out.clear();
   }
+}
+
+TEST(StateMachineTests, constructSourceArray) {
+  using Transition = susml::optimized::Transition<int, int>;
+  using StateMachine = susml::optimized::StateMachine<
+      std::tuple<Transition, Transition, Transition, Transition>>;
+
+  Transition t1(1, 0, 0);
+  Transition t2(2, 0, 0);
+  Transition t3(3, 0, 0);
+  Transition t4(4, 0, 0);
+
+  EXPECT_EQ((std::array{1, 2, 3, 4}),
+            StateMachine::getAllSources(std::make_tuple(t1, t2, t3, t4)));
+  EXPECT_EQ((std::array{2, 4, 3, 1}),
+            StateMachine::getAllSources(std::make_tuple(t2, t4, t3, t1)));
+}
+
+TEST(StateMachineTests, constructEventArray) {
+  using Transition = susml::optimized::Transition<int, int>;
+  using StateMachine = susml::optimized::StateMachine<
+      std::tuple<Transition, Transition, Transition, Transition>>;
+
+  Transition t1(0, 0, 1);
+  Transition t2(0, 0, 2);
+  Transition t3(0, 0, 3);
+  Transition t4(0, 0, 4);
+
+  EXPECT_EQ((std::array{1, 2, 3, 4}),
+            StateMachine::getAllEvents(std::make_tuple(t1, t2, t3, t4)));
+  EXPECT_EQ((std::array{2, 4, 3, 1}),
+            StateMachine::getAllEvents(std::make_tuple(t2, t4, t3, t1)));
 }
 
 int main(int argc, char **argv) {

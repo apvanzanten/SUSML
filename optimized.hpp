@@ -16,6 +16,7 @@
 #define SUSML_OPTIMIZED_HPP
 
 #include <algorithm>
+#include <initializer_list>
 #include <iostream>
 #include <tuple>
 #include <type_traits>
@@ -75,12 +76,12 @@ template <typename ActionTuple> constexpr bool isActionTupleType() {
       std::make_index_sequence<std::tuple_size<ActionTuple>::value>();
   return areTypesAtIndicesActionTypes<ActionTuple>(indices);
 }
+
 } // namespace validate
 
 template <typename StateT, typename EventT, typename GuardsT = std::tuple<>,
           typename ActionsT = std::tuple<>>
-class Transition {
-public:
+struct Transition {
   using State = StateT;
   using Event = EventT;
   using Guards = GuardsT;
@@ -117,7 +118,114 @@ public:
   }
 };
 
-// TODO StateMachine with Transitions tuple
+namespace validate {
+/* Transitions type validation
+ */
+
+template <typename> struct IsTransitionTypeImpl : std::false_type {};
+
+template <typename StateT, typename EventT, typename GuardsT, typename ActionsT>
+struct IsTransitionTypeImpl<Transition<StateT, EventT, GuardsT, ActionsT>>
+    : std::true_type {};
+
+template <typename T> constexpr bool isTransitionType() {
+  return IsTransitionTypeImpl<T>::value;
+}
+
+template <typename TransitionTuple, std::size_t... Indices>
+constexpr bool
+areTypesAtIndicesTransitionTypes(std::index_sequence<Indices...>) {
+  return (isTransitionType<
+              typename std::tuple_element<Indices, TransitionTuple>::type>() &&
+          ...);
+}
+
+template <typename Transition, typename State, typename Event>
+constexpr bool hasTransitionTypeStateAndEvent() {
+  return std::is_same<typename Transition::State, State>::value &&
+         std::is_same<typename Transition::Event, Event>::value;
+}
+
+template <typename TransitionTuple, std::size_t... Indices>
+constexpr bool
+areTransitionTypesAtIndicesUniform(std::index_sequence<Indices...> indices) {
+  if constexpr (indices.size() > 0) {
+    using FirstTransition =
+        typename std::tuple_element<0, TransitionTuple>::type;
+    using State = typename FirstTransition::State;
+    using Event = typename FirstTransition::Event;
+    return (... &&
+            hasTransitionTypeStateAndEvent<
+                typename std::tuple_element<Indices, TransitionTuple>::type,
+                State, Event>());
+  }
+  return true;
+}
+
+template <typename TransitionTuple>
+constexpr bool isValidTransitionTupleType() {
+  constexpr auto indices =
+      std::make_index_sequence<std::tuple_size<TransitionTuple>::value>();
+  return areTransitionTypesAtIndicesUniform<TransitionTuple>(indices);
+}
+
+} // namespace validate
+
+template <typename TransitionsT> struct StateMachine {
+public:
+  static_assert(validate::isValidTransitionTupleType<TransitionsT>(),
+                "All elements of TransitionsT should be Transitions with same "
+                "State type and Event type.");
+
+  using TransitionTuple = TransitionsT;
+  using FirstTransition = typename std::tuple_element<0, TransitionTuple>::type;
+  using State = typename FirstTransition::State;
+  using Event = typename FirstTransition::Event;
+
+  template <typename TransitionTuple, std::size_t... Indices>
+  static constexpr auto getAllSourcesImpl(const TransitionTuple & transitions, const std::index_sequence<Indices...> &) {
+    constexpr auto numTransitions = sizeof...(Indices);
+    return std::array<State, numTransitions>{
+      std::get<Indices>(transitions).source...
+    }; 
+  }
+
+  static constexpr auto getAllSources(const TransitionTuple & transitions) {
+    constexpr auto indices = std::make_index_sequence<std::tuple_size<TransitionTuple>::value>();
+    return getAllSourcesImpl(transitions, indices);
+  }
+
+  template <typename TransitionTuple, std::size_t... Indices>
+  static constexpr auto getAllEventsImpl(const TransitionTuple & transitions, const std::index_sequence<Indices...> &) {
+    constexpr auto numTransitions = sizeof...(Indices);
+    return std::array<Event, numTransitions>{
+      std::get<Indices>(transitions).event...
+    }; 
+  }
+
+  static constexpr auto getAllEvents(const TransitionTuple & transitions) {
+    constexpr auto indices = std::make_index_sequence<std::tuple_size<TransitionTuple>::value>();
+    return getAllEventsImpl(transitions, indices);
+  }
+
+  const std::array<State, std::tuple_size<TransitionTuple>::value> sources;
+  const std::array<Event, std::tuple_size<TransitionTuple>::value> events;
+
+  TransitionTuple transitions;
+  State currentState;
+
+// private:
+//   static constexpr std::size_t checkForValidTransition(TransitionTuple State source,
+//                                                 Event event) {
+                                                  
+//                                                 }
+
+// public:
+//   constexpr void trigger(const Event &event) {}
+
+
+
+};
 
 } // namespace susml::optimized
 
