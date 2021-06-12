@@ -104,29 +104,101 @@ TEST(TransitionTests, basic) {
   EXPECT_EQ(Event::turnOn, t.event);
 }
 
-TEST(TransitionTests, basicWithGuardAndAction) {
+TEST(TransitionTests, basicWithGuard) {
   using susml::optimized::Transition;
 
-  enum class State { off, on };
-  enum class Event { turnOn, turnOff };
+  bool val = false;
+  auto getVal = [&val] { return val; };
 
-  bool isReady = false;
-  auto checkIsReady = [&isReady] { return isReady; };
-  auto unsetReady = [&isReady] { isReady = false; };
+  auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
+                               // states and events for this test
+                      std::make_tuple(getVal)};
 
-  auto t =
-      Transition{State::off, State::on, Event::turnOn,
-                 std::make_tuple(checkIsReady), std::make_tuple(unsetReady)};
+  EXPECT_FALSE(t.checkGuards())
+      << "should return false because val is false";
 
-  EXPECT_EQ(State::off, t.source);
-  EXPECT_EQ(State::on, t.target);
-  EXPECT_EQ(Event::turnOn, t.event); 
-
-  EXPECT_FALSE(t.checkGuards()) << "should return false because isReady is false";
-
-  isReady = true;
-  EXPECT_TRUE(t.checkGuards()) << "should return true because isReady is true";
+  val = true;
+  EXPECT_TRUE(t.checkGuards()) << "should return true because val is true";
 }
+
+TEST(TransitionTests, basicWithAction) {
+  using susml::optimized::Transition;
+
+  bool val = false;
+  auto setVal = [&val] { val = true; };
+
+  auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
+                               // states and events for this test
+                      std::tuple<>(),
+                      std::make_tuple(setVal)};
+
+  ASSERT_FALSE(val);
+
+  t.executeActions(); // should set val to true
+  EXPECT_TRUE(val);
+}
+
+TEST(TransitionTests, multipleGuards) {
+  using susml::optimized::Transition;
+
+  bool valA = false;
+  int valB = 0;
+  std::string valC = "";
+
+  auto getValA = [&valA] { return valA; };
+  auto isValBGreaterThanZero = [&valB] { return (valB > 0); };
+  auto isValCHello = [&valC] { return (valC == "hello"); };
+
+  auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
+                               // states and events for this test
+                      std::make_tuple(getValA, isValBGreaterThanZero, isValCHello)};
+
+  EXPECT_FALSE(t.checkGuards()) << "should return false because valA is false";
+
+  valA = true;
+  EXPECT_FALSE(t.checkGuards()) << "should return false because valB is not greater than zero";
+
+  valB = 1;
+  EXPECT_FALSE(t.checkGuards()) << "should return false because valC is not equal to \"hello\".";
+
+  valC = "hello";
+  EXPECT_TRUE(t.checkGuards());
+
+  valA = false;
+  EXPECT_FALSE(t.checkGuards()) << "should return false because valA is false";
+
+  valA = true;
+  valB = 0;
+  EXPECT_FALSE(t.checkGuards()) << "should return false because valB is not greater than zero";
+}
+
+TEST(TransitionTests, multipleActions) {
+  using susml::optimized::Transition;
+
+  bool valA = false;
+  int valB = 0;
+  std::string valC = "";
+
+  auto setValA = [&valA] { valA = true; };
+  auto setValBToOne = [&valB] { valB = 1; };
+  auto setValCToHello = [&valC] { valC = "hello"; };
+
+  auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
+                               // states and events for this test
+                      std::tuple<>(),
+                      std::make_tuple(setValA, setValBToOne, setValCToHello)};
+
+  ASSERT_FALSE(valA);
+  ASSERT_EQ(0, valB);
+  ASSERT_EQ("", valC);
+
+  t.executeActions();
+  EXPECT_TRUE(valA);
+  EXPECT_EQ(1, valB);
+  EXPECT_EQ("hello", valC);
+}
+
+
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);

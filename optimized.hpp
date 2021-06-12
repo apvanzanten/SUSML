@@ -104,7 +104,7 @@ constexpr void executeActions(FirstAction &a, OtherActions &...as) {
 }
 
 template <typename... Actions>
-constexpr void executeActions(std::tuple<Actions...> &actions) {
+constexpr void executeActionTuple(std::tuple<Actions...> &actions) {
   if constexpr (sizeof...(Actions) > 0) {
     std::apply(executeActions<Actions...>, actions);
   }
@@ -144,7 +144,7 @@ public:
   constexpr Transition &operator=(Transition &&other) = default;
 
   constexpr bool checkGuards() const { return evaluate::checkGuardTuple(guards); }
-  constexpr void executeActions() { evaluate::executeActions(actions); }
+  constexpr void executeActions() { evaluate::executeActionTuple(actions); }
 };
 
 // TODO test!
