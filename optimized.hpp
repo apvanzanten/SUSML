@@ -78,11 +78,6 @@ template <typename ActionTuple> constexpr bool isActionTupleType() {
 } // namespace validate
 
 namespace evaluate {
-template <typename... Guards>
-constexpr bool checkGuards(const std::tuple<Guards...> &guards) {
-  return std::apply([&](const auto &...g) { return (... & g()); }, guards);
-}
-
 /* Action execution
  */
 constexpr void executeActions() {}
@@ -133,7 +128,9 @@ public:
   constexpr Transition &operator=(const Transition &other) = default;
   constexpr Transition &operator=(Transition &&other) = default;
 
-  constexpr bool checkGuards() const { return evaluate::checkGuards(guards); }
+  constexpr bool checkGuards() const {
+    return std::apply([&](const auto &...g) { return (... & g()); }, guards);
+  }
   constexpr void executeActions() { evaluate::executeActionTuple(actions); }
 };
 
