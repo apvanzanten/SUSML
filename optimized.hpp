@@ -78,19 +78,9 @@ template <typename ActionTuple> constexpr bool isActionTupleType() {
 } // namespace validate
 
 namespace evaluate {
-
-/* Guard evaluation
- */
-constexpr bool checkGuards() { return true; }
-
-template <typename FirstGuard, typename... OtherGuards>
-constexpr bool checkGuards(const FirstGuard &g, const OtherGuards &...gs) {
-  return g() && checkGuards(gs...);
-}
-
 template <typename... Guards>
-constexpr bool checkGuardTuple(const std::tuple<Guards...> &guards) {
-  return (sizeof...(Guards) == 0) || std::apply(checkGuards<Guards...>, guards);
+constexpr bool checkGuards(const std::tuple<Guards...> &guards) {
+  return std::apply([&](const auto &...g) { return (... & g()); }, guards);
 }
 
 /* Action execution
@@ -143,7 +133,7 @@ public:
   constexpr Transition &operator=(const Transition &other) = default;
   constexpr Transition &operator=(Transition &&other) = default;
 
-  constexpr bool checkGuards() const { return evaluate::checkGuardTuple(guards); }
+  constexpr bool checkGuards() const { return evaluate::checkGuards(guards); }
   constexpr void executeActions() { evaluate::executeActionTuple(actions); }
 };
 
