@@ -23,9 +23,11 @@
 
 namespace susml::optimized {
 
-namespace validity {
+namespace validate {
 
-template <typename Candidate> constexpr bool isGuardTypeValid() {
+/* Guard type validation
+ */
+template <typename Candidate> constexpr bool isGuardType() {
   // these two checks are put together with this constexpr-if because
   // std::invoke_result will break compilation otherwise in cases where
   // Candidate is not invocable
@@ -37,47 +39,48 @@ template <typename Candidate> constexpr bool isGuardTypeValid() {
 }
 
 template <typename GuardTuple, std::size_t... Indices>
-constexpr bool areGuardTypesAtIndicesValid(std::index_sequence<Indices...>) {
-  (std::cout << ... << Indices) << std::endl;
+constexpr bool areTypesAtIndicesGuardTypes(std::index_sequence<Indices...>) {
   return (
-      isGuardTypeValid<typename std::tuple_element<Indices, GuardTuple>::type>() &&
+      isGuardType<typename std::tuple_element<Indices, GuardTuple>::type>() &&
       ...);
 }
 
-template <typename GuardTuple> constexpr bool isValidGuardTupleType() {
+template <typename GuardTuple> constexpr bool isGuardTupleType() {
   auto indices = std::make_index_sequence<std::tuple_size<GuardTuple>::value>();
-  return areGuardTypesAtIndicesValid<GuardTuple>(indices);
+  return areTypesAtIndicesGuardTypes<GuardTuple>(indices);
 }
 
-constexpr bool isValidActions() { return true; }
-
-template <typename ActionCandidate>
-constexpr bool isValidAction(const ActionCandidate &) {
+/* Action type validation
+ */
+template <typename Candidate> constexpr bool isActionType() {
   // these two checks are put together with this constexpr-if because
   // std::invoke_result will break compilation otherwise in cases where
-  // GuardCandidate is not invocable
-  if constexpr (std::is_invocable<ActionCandidate>::value) {
-    return std::is_same<typename std::invoke_result<ActionCandidate>::type,
+  // Candidate is not invocable
+  if constexpr (std::is_invocable<Candidate>::value) {
+    return std::is_same<typename std::invoke_result<Candidate>::type,
                         void>::value;
   }
   return false;
 }
 
-template <typename ActionCandidate, typename... Args>
-constexpr bool isValidActions(const ActionCandidate &gc, const Args &...args) {
-  return isValidAction(gc) && isValidActions(args...);
+template <typename ActionTuple, std::size_t... Indices>
+constexpr bool areTypesAtIndicesActionTypes(std::index_sequence<Indices...>) {
+  return (
+      isActionType<typename std::tuple_element<Indices, ActionTuple>::type>() &&
+      ...);
 }
 
-template <typename... Args>
-constexpr bool isValidActionTuple(const std::tuple<Args...> &t) {
-  if constexpr ((sizeof...(Args) > 0)) {
-    return std::apply(isValidActions<Args...>, t);
-  }
-  return true;
+template <typename ActionTuple> constexpr bool isActionTupleType() {
+  auto indices =
+      std::make_index_sequence<std::tuple_size<ActionTuple>::value>();
+  return areTypesAtIndicesActionTypes<ActionTuple>(indices);
 }
-} // namespace validity
+} // namespace validate
 
 namespace evaluate {
+
+/* Guard evaluation
+ */
 constexpr bool checkGuards() { return true; }
 
 template <typename FirstGuard, typename... OtherGuards>
@@ -86,10 +89,12 @@ constexpr bool checkGuards(const FirstGuard &g, const OtherGuards &...gs) {
 }
 
 template <typename... Guards>
-constexpr bool checkGuards(const std::tuple<Guards...> &guards) {
-  return (sizeof...(Guards) > 0) || std::apply(checkGuards<Guards...>, guards);
+constexpr bool checkGuardTuple(const std::tuple<Guards...> &guards) {
+  return (sizeof...(Guards) == 0) || std::apply(checkGuards<Guards...>, guards);
 }
 
+/* Action execution
+ */
 constexpr void executeActions() {}
 
 template <typename FirstAction, typename... OtherActions>
@@ -104,10 +109,10 @@ constexpr void executeActions(std::tuple<Actions...> &actions) {
     std::apply(executeActions<Actions...>, actions);
   }
 }
-
 } // namespace evaluate
 
-template <typename StateT, typename EventT, typename GuardsT, typename ActionsT>
+template <typename StateT, typename EventT, typename GuardsT = std::tuple<>,
+          typename ActionsT = std::tuple<>>
 class Transition {
 public:
   using State = StateT;
@@ -115,38 +120,31 @@ public:
   using Guards = GuardsT;
   using Actions = ActionsT;
 
-  static_assert(validity::isValidGuardTupleType<Guards>(),
+  static_assert(validate::isGuardTupleType<Guards>(),
                 "Guards should be tuple of invocables returning bool");
-  static_assert(validity::isValidActionTuple(Actions{}),
+  static_assert(validate::isActionTupleType<Actions>(),
                 "Actions should be tuple of invocables return void");
 
-private:
-  State mSource;
-  State mTarget;
-  Event mEvent;
-  Guards mGuards;
-  Actions mActions;
+  State source;
+  State target;
+  Event event;
+  Guards guards;
+  Actions actions;
 
-public:
-  constexpr Transition(const State &source, const State &target,
-                       const Event &event,
-                       const Guards &guards = std::tuple<>(),
-                       const Actions &actions = std::tuple<>())
-      : mSource(source), mTarget(target), mEvent(event), mGuards(guards),
-        mActions(actions) {}
+  constexpr Transition() = default;
+
+  constexpr Transition(const State &s, const State &t, const Event &e,
+                       const Guards &g = std::tuple<>(),
+                       const Actions &a = std::tuple<>())
+      : source(s), target(t), event(e), guards(g), actions(a) {}
 
   constexpr Transition(const Transition &other) = default;
   constexpr Transition(Transition &&other) = default;
   constexpr Transition &operator=(const Transition &other) = default;
   constexpr Transition &operator=(Transition &&other) = default;
-  ~Transition() = default;
 
-  constexpr State source() const { return mSource; }
-  constexpr State target() const { return mTarget; }
-  constexpr Event event() const { return mEvent; }
-
-  constexpr bool checkGuards() const { return evaluate::checkGuards(mGuards); }
-  constexpr void executeActions() { evaluate::executeActions(mActions); }
+  constexpr bool checkGuards() const { return evaluate::checkGuardTuple(guards); }
+  constexpr void executeActions() { evaluate::executeActions(actions); }
 };
 
 // TODO test!
