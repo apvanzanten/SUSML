@@ -51,3 +51,11 @@ add_executable(OptimizedGTest ${TEST_DIR}/optimized.gtest.cpp)
 target_include_directories(OptimizedGTest PUBLIC ${PROJECT_SOURCE_DIR})
 target_link_libraries(OptimizedGTest ${GTEST_BOTH_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 add_test(allOptimizedGTests OptimizedGTest)
+
+set(BENCHMARK_ENABLE_TESTING OFF)
+find_package(benchmark REQUIRED)
+
+add_executable(MainBench ${TEST_DIR}/main.bench.cpp)
+target_include_directories(MainBench PUBLIC ${PROJECT_SOURCE_DIR})
+target_compile_options(MainBench PUBLIC -O3)
+target_link_libraries(MainBench benchmark)
