@@ -1,4 +1,5 @@
-
+#ifndef FACTORY_HPP
+#define FACTORY_HPP
 // This file is part of Still Untitled State Machine Library (SUSML).
 //    Copyright (C) 2021 A.P. van Zanten
 // SUSML is free software: you can redistribute it and/or modify
@@ -138,3 +139,5 @@ Do(std::initializer_list<Action> actions) {
 }
 
 } // namespace susml::factory
+
+#endif

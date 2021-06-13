@@ -54,7 +54,12 @@ add_test(allTupleBasedTests tuplebasedTest)
 
 find_package(benchmark REQUIRED)
 
-add_executable(mainBench ${TEST_DIR}/main.bench.cpp)
-target_include_directories(mainBench PUBLIC ${PROJECT_SOURCE_DIR})
-target_compile_options(mainBench PUBLIC -O3)
-target_link_libraries(mainBench benchmark)
+add_executable(circleUpTo16Bench ${TEST_DIR}/circleUpTo16.bench.cpp)
+target_include_directories(circleUpTo16Bench PUBLIC ${PROJECT_SOURCE_DIR})
+target_compile_options(circleUpTo16Bench PUBLIC -O3)
+target_link_libraries(circleUpTo16Bench benchmark)
+
+add_executable(circle32Bench ${TEST_DIR}/circle32.bench.cpp)
+target_include_directories(circle32Bench PUBLIC ${PROJECT_SOURCE_DIR})
+target_compile_options(circle32Bench PUBLIC -O3)
+target_link_libraries(circle32Bench benchmark)
