@@ -81,16 +81,16 @@ template <typename ActionTuple> constexpr bool isActionTupleType() {
 } // namespace validate
 
 template <typename StateT, typename EventT, typename GuardsT = std::tuple<>,
-          typename ActionsT = std::tuple<>>
+          typename ActionsT = std::tuple<>, bool UseAsserts = true>
 struct Transition {
   using State = StateT;
   using Event = EventT;
   using Guards = GuardsT;
   using Actions = ActionsT;
 
-  static_assert(validate::isGuardTupleType<Guards>(),
+  static_assert(!UseAsserts || validate::isGuardTupleType<Guards>(),
                 "Guards should be tuple of invocables returning bool");
-  static_assert(validate::isActionTupleType<Actions>(),
+  static_assert(!UseAsserts || validate::isActionTupleType<Actions>(),
                 "Actions should be tuple of invocables return void");
 
   State source;
@@ -188,8 +188,8 @@ constexpr auto tail(const std::tuple<ElementTypes...> &tuple) {
 }
 } // namespace utility
 
-template <typename TransitionsT> struct StateMachine {
-  static_assert(validate::isValidTransitionTupleType<TransitionsT>(),
+template <typename TransitionsT, bool UseAsserts = true> struct StateMachine {
+  static_assert(!UseAsserts || validate::isValidTransitionTupleType<TransitionsT>(),
                 "All elements of TransitionsT should be Transitions with same "
                 "State type and Event type.");
 
