@@ -172,112 +172,61 @@ constexpr bool isValidTransitionTupleType() {
 
 } // namespace validate
 
-namespace utility {
-template <typename Tuple, std::size_t... Indices>
-constexpr auto tailImpl(const Tuple &tuple,
-                        const std::index_sequence<Indices...> &) {
-  return std::make_tuple(std::get<(Indices + 1)>(tuple)...);
-}
+template <typename TransitionsT, bool UseAsserts = true> class StateMachine {
+public:
+  using TransitionTuple = TransitionsT;
+  static constexpr std::size_t NumTransitions =
+      std::tuple_size<TransitionTuple>::value;
 
-template <typename... ElementTypes>
-constexpr auto tail(const std::tuple<ElementTypes...> &tuple) {
-  constexpr auto numElements = sizeof...(ElementTypes);
-  constexpr auto indices =
-      std::make_index_sequence<((numElements == 0) ? 0 : numElements - 1)>();
-  return tailImpl(tuple, indices);
-}
-} // namespace utility
-
-template <typename TransitionsT, bool UseAsserts = true> struct StateMachine {
-  static_assert(!UseAsserts || validate::isValidTransitionTupleType<TransitionsT>(),
+  static_assert(!UseAsserts || NumTransitions > 0);
+  static_assert(!UseAsserts ||
+                    validate::isValidTransitionTupleType<TransitionTuple>(),
                 "All elements of TransitionsT should be Transitions with same "
                 "State type and Event type.");
 
-  // TODO figure out way to not break on a zero-transition machine
-  using TransitionTuple = TransitionsT;
   using FirstTransition = typename std::tuple_element<0, TransitionTuple>::type;
   using State = typename FirstTransition::State;
   using Event = typename FirstTransition::Event;
 
-  template <typename TransitionTuple, std::size_t... Indices>
-  static constexpr auto
-  getAllSourcesImpl(const TransitionTuple &transitions,
-                    const std::index_sequence<Indices...> &) {
-    constexpr auto numTransitions = sizeof...(Indices);
-    return std::array<State, numTransitions>{
-        std::get<Indices>(transitions).source...};
+  constexpr StateMachine(const TransitionTuple &transitions,
+                         const State &initialState)
+      : mTransitions(transitions), mCurrentState(initialState) {}
+
+  constexpr void trigger(const Event &event) {
+    triggerImpl(event, std::make_index_sequence<NumTransitions>());
   }
 
-  static constexpr auto getAllSources(const TransitionTuple &transitions) {
-    constexpr auto indices =
-        std::make_index_sequence<std::tuple_size<TransitionTuple>::value>();
-    return getAllSourcesImpl(transitions, indices);
-  }
+  constexpr const TransitionTuple &transitions() const { return mTransitions; }
+  constexpr const State &currentState() const { return mCurrentState; }
 
-  template <typename TransitionTuple, std::size_t... Indices>
-  static constexpr auto
-  getAllEventsImpl(const TransitionTuple &transitions,
-                   const std::index_sequence<Indices...> &) {
-    constexpr auto numTransitions = sizeof...(Indices);
-    return std::array<Event, numTransitions>{
-        std::get<Indices>(transitions).event...};
-  }
-
-  static constexpr auto getAllEvents(const TransitionTuple &transitions) {
-    constexpr auto indices =
-        std::make_index_sequence<std::tuple_size<TransitionTuple>::value>();
-    return getAllEventsImpl(transitions, indices);
-  }
+private:
+  TransitionTuple mTransitions;
+  State mCurrentState;
 
   template <typename Transition>
-  static constexpr bool isTakeableTransition(const Transition &transition,
-                                             const State &source,
-                                             const Event &event) {
-    return transition.source == source && transition.event == event &&
+  constexpr bool isTakeableTransition(const Transition &transition,
+                                      const Event &event) {
+    return mCurrentState == transition.source && event == transition.event &&
            transition.checkGuards();
   }
 
   template <typename Transition>
-  static constexpr std::tuple<bool, State>
-  takeTransitionIfAble(Transition &transition, const State &source,
-                       const Event &event) {
-    const bool isTakeable = isTakeableTransition(transition, source, event);
+  constexpr bool takeTransitionIfAble(Transition &transition,
+                                      const Event &event) {
+    const bool isTakeable = isTakeableTransition(transition, event);
     if (isTakeable) {
       transition.executeActions();
-      return {true, transition.target};
+      mCurrentState = transition.target;
+      return true;
     }
-    return {false, source};
+    return false;
   }
 
-  template <typename FirstTransition, typename... OtherTransitions>
-  static constexpr State
-  triggerImpl(std::tuple<FirstTransition, OtherTransitions...> &transitions,
-              const State &source, const Event &event) {
-    constexpr std::size_t numTransitions = std::tuple_size<
-        typename std::remove_reference<decltype(transitions)>::type>::value;
-    if constexpr (numTransitions > 0) {
-      auto first = std::get<0>(transitions);
-      const auto &[isFirstTaken, newState] =
-          takeTransitionIfAble(first, source, event);
-      if (isFirstTaken) {
-        return newState;
-      }
-      if constexpr(numTransitions > 1) {
-        std::tuple otherTransitions = utility::tail(transitions);
-        return StateMachine::triggerImpl(otherTransitions, source, event);
-      }
-    }
-    return source;
-  }
-
-  TransitionTuple transitions;
-  State currentState;
-
-public:
-  constexpr void trigger(const Event &event) {
-    if constexpr (std::tuple_size<TransitionTuple>::value > 0) {
-      currentState = StateMachine::triggerImpl(transitions, currentState, event);
-    }
+  template <std::size_t... Indices>
+  constexpr bool triggerImpl(const Event &event,
+                             const std::index_sequence<Indices...> &) {
+    return (... ||
+            takeTransitionIfAble(std::get<Indices>(mTransitions), event));
   }
 };
 
