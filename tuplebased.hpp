@@ -147,53 +147,52 @@ constexpr bool hasTransitionTypeStateAndEvent() {
          std::is_same<typename Transition::Event, Event>::value;
 }
 
-template <typename TransitionTuple, std::size_t... Indices>
+template <typename TransitionTuple, typename State, typename Event,
+          std::size_t... Indices>
 constexpr bool
-areTransitionTypesAtIndicesUniform(std::index_sequence<Indices...> indices) {
-  if constexpr (indices.size() > 0) {
-    using FirstTransition =
-        typename std::tuple_element<0, TransitionTuple>::type;
-    using State = typename FirstTransition::State;
-    using Event = typename FirstTransition::Event;
-    return (... &&
-            hasTransitionTypeStateAndEvent<
-                typename std::tuple_element<Indices, TransitionTuple>::type,
-                State, Event>());
-  }
-  return true;
+isValidTransitionTupleTypeImpl(const std::index_sequence<Indices...> &) {
+  return (... &&
+          hasTransitionTypeStateAndEvent<
+              typename std::tuple_element<Indices, TransitionTuple>::type,
+              State, Event>());
 }
 
-template <typename TransitionTuple>
+template <typename TransitionTuple, typename State, typename Event>
 constexpr bool isValidTransitionTupleType() {
-  constexpr auto indices =
-      std::make_index_sequence<std::tuple_size<TransitionTuple>::value>();
-  return areTransitionTypesAtIndicesUniform<TransitionTuple>(indices);
+  if constexpr (std::tuple_size<TransitionTuple>::value > 0) {
+    constexpr auto indices =
+        std::make_index_sequence<std::tuple_size<TransitionTuple>::value>();
+    return isValidTransitionTupleTypeImpl<TransitionTuple, State, Event>(
+        indices);
+  }
+  return false; // the tuple is empty, it needs at least one transition
 }
 
 } // namespace validate
 
-template <typename TransitionsT, bool UseAsserts = true> class StateMachine {
+template <typename StateT, typename EventT, typename TransitionsT,
+          bool UseAsserts = true>
+class StateMachine {
 public:
   using TransitionTuple = TransitionsT;
-  static constexpr std::size_t NumTransitions =
-      std::tuple_size<TransitionTuple>::value;
-
-  static_assert(!UseAsserts || NumTransitions > 0);
-  static_assert(!UseAsserts ||
-                    validate::isValidTransitionTupleType<TransitionTuple>(),
-                "All elements of TransitionsT should be Transitions with same "
-                "State type and Event type.");
-
-  using FirstTransition = typename std::tuple_element<0, TransitionTuple>::type;
-  using State = typename FirstTransition::State;
-  using Event = typename FirstTransition::Event;
+  using State = StateT;
+  using Event = EventT;
 
   constexpr StateMachine(const TransitionTuple &transitions,
                          const State &initialState)
-      : mTransitions(transitions), mCurrentState(initialState) {}
+      : mTransitions(transitions), mCurrentState(initialState) {
+    if constexpr (UseAsserts) {
+      static_assert(
+          validate::isValidTransitionTupleType<TransitionTuple, State, Event>(),
+          "StateMachine needs at least one transition, and all "
+          "transitions must have the correct State type and Event type.");
+    }
+  }
 
   constexpr void trigger(const Event &event) {
-    triggerImpl(event, std::make_index_sequence<NumTransitions>());
+    constexpr std::size_t numTransitions =
+        std::tuple_size<TransitionTuple>::value;
+    triggerImpl(event, std::make_index_sequence<numTransitions>());
   }
 
   constexpr const TransitionTuple &transitions() const { return mTransitions; }

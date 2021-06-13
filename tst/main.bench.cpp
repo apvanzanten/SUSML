@@ -13,8 +13,8 @@ using susml::tuplebased::Transition;
 
 template <std::size_t Index, std::size_t TotalTransitions>
 constexpr auto makeTransition(std::size_t &counter) {
-  constexpr auto source = Index;
-  constexpr auto target = ((Index + 1) < TotalTransitions) ? Index + 1 : 0;
+  constexpr std::size_t source = Index;
+  constexpr std::size_t target = ((Index + 1) < TotalTransitions) ? Index + 1 : 0;
 
   return Transition(source, target, true, std::make_tuple(),
                     std::make_tuple([&] { counter += Index; }));
@@ -36,7 +36,7 @@ static void benchTupleBased(benchmark::State &s) {
   auto tuple =
       makeTransitions(std::make_index_sequence<NumTransitions>(), counter);
 
-  auto m = StateMachine<decltype(tuple)>{tuple, 0};
+  auto m = StateMachine<std::size_t, bool, decltype(tuple)>(tuple, 0);
 
   for (auto _ : s) {
     for (int i = 0; i < numTriggers; i++) {

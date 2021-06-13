@@ -42,7 +42,7 @@ int main() {
 
   auto transitions =
       makeTransitions(std::make_index_sequence<NUM_TRANSITIONS>(), counter);
-  auto m = StateMachine<decltype(transitions), USE_ASSERTS>{transitions, 0};
+  auto m = StateMachine<int, int, decltype(transitions), USE_ASSERTS>{transitions, 0};
 
   for (int i = 0; i < NUM_TRIGGERS; i++) {
     m.trigger(true);

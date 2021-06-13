@@ -113,28 +113,28 @@ TEST(ValidationTests, transitionTuples) {
   using susml::tuplebased::validate::isValidTransitionTupleType;
 
   EXPECT_TRUE((isValidTransitionTupleType<
-               std::tuple<Transition<int, bool>, Transition<int, bool>>>()));
+               std::tuple<Transition<int, bool>, Transition<int, bool>>, int, bool>()));
 
   EXPECT_FALSE((isValidTransitionTupleType<
-                std::tuple<Transition<int, int>, Transition<int, bool>>>()));
+                std::tuple<Transition<int, int>, Transition<int, bool>>, int, bool>()));
 
   EXPECT_FALSE((isValidTransitionTupleType<
-                std::tuple<Transition<int, bool>, Transition<int, int>>>()));
+                std::tuple<Transition<int, bool>, Transition<int, int>>, int, bool>()));
 
   EXPECT_TRUE(
       (isValidTransitionTupleType<std::tuple<
            Transition<int, bool, std::tuple<bool (*)()>>,
-           Transition<int, bool, std::tuple<>, std::tuple<void (*)()>>>>()));
+           Transition<int, bool, std::tuple<>, std::tuple<void (*)()>>>, int, bool>()));
 
   EXPECT_FALSE(
       (isValidTransitionTupleType<std::tuple<
            Transition<int, int, std::tuple<bool (*)()>>,
-           Transition<int, bool, std::tuple<>, std::tuple<void (*)()>>>>()));
+           Transition<int, bool, std::tuple<>, std::tuple<void (*)()>>>, int, bool>()));
 
   EXPECT_FALSE(
       (isValidTransitionTupleType<std::tuple<
            Transition<int, bool, std::tuple<bool (*)()>>,
-           Transition<int, int, std::tuple<>, std::tuple<void (*)()>>>>()));
+           Transition<int, int, std::tuple<>, std::tuple<void (*)()>>>, int, bool>()));
 }
 
 TEST(TransitionTests, basic) {
@@ -294,7 +294,8 @@ TEST(StateMachineTests, basicTransition) {
 
   using Transition = susml::tuplebased::Transition<State, Event>;
   using StateMachine =
-      susml::tuplebased::StateMachine<std::tuple<Transition, Transition>>;
+      susml::tuplebased::StateMachine<State, Event,
+                                      std::tuple<Transition, Transition>>;
 
   Transition onToOff(State::on, State::off, Event::turnOff);
   Transition offToOn(State::off, State::on, Event::turnOn);
@@ -306,7 +307,7 @@ TEST(StateMachineTests, basicTransition) {
   m.trigger(Event::turnOff); // already off, state won't change
   EXPECT_EQ(State::off, m.currentState());
 
-  m.trigger(Event::turnOn); 
+  m.trigger(Event::turnOn);
   EXPECT_EQ(State::on, m.currentState());
 
   m.trigger(Event::turnOn); // already on, state won't change
@@ -338,7 +339,8 @@ TEST(StateMachineTests, transitionWithGaurdAndActions) {
 
   auto transitions = std::make_tuple(offToOn, onToOff);
 
-  using StateMachine = susml::tuplebased::StateMachine<decltype(transitions)>;
+  using StateMachine =
+      susml::tuplebased::StateMachine<State, Event, decltype(transitions)>;
 
   StateMachine m{transitions, State::off};
 
