@@ -23,7 +23,7 @@
 #include <utility>
 #include <variant>
 
-namespace susml::optimized {
+namespace susml::tuplebased {
 
 namespace validate {
 
@@ -281,6 +281,6 @@ public:
   }
 };
 
-} // namespace susml::optimized
+} // namespace susml::tuplebased
 
 #endif

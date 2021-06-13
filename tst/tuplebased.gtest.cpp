@@ -13,17 +13,15 @@
 
 #include "gtest/gtest.h"
 
-#include "optimized.hpp"
-
-// using susml::optimized::Transition;
+#include "tuplebased.hpp"
 
 bool trueGuard() { return true; }
 
 void noneAction() {}
 
 TEST(ValidationTests, guards) {
-  using susml::optimized::validate::isGuardTupleType;
-  using susml::optimized::validate::isGuardType;
+  using susml::tuplebased::validate::isGuardTupleType;
+  using susml::tuplebased::validate::isGuardType;
 
   bool b = true;
 
@@ -58,8 +56,8 @@ TEST(ValidationTests, guards) {
 }
 
 TEST(ValidationTests, actions) {
-  using susml::optimized::validate::isActionTupleType;
-  using susml::optimized::validate::isActionType;
+  using susml::tuplebased::validate::isActionTupleType;
+  using susml::tuplebased::validate::isActionType;
 
   bool b = true;
 
@@ -92,8 +90,8 @@ TEST(ValidationTests, actions) {
 }
 
 TEST(ValidationTests, transitions) {
-  using susml::optimized::Transition;
-  using susml::optimized::validate::isTransitionType;
+  using susml::tuplebased::Transition;
+  using susml::tuplebased::validate::isTransitionType;
 
   enum class State { a, b, c };
   enum class Event { x, y, z };
@@ -111,8 +109,8 @@ TEST(ValidationTests, transitions) {
 }
 
 TEST(ValidationTests, transitionTuples) {
-  using susml::optimized::Transition;
-  using susml::optimized::validate::isValidTransitionTupleType;
+  using susml::tuplebased::Transition;
+  using susml::tuplebased::validate::isValidTransitionTupleType;
 
   EXPECT_TRUE((isValidTransitionTupleType<
                std::tuple<Transition<int, bool>, Transition<int, bool>>>()));
@@ -140,7 +138,7 @@ TEST(ValidationTests, transitionTuples) {
 }
 
 TEST(TransitionTests, basic) {
-  using susml::optimized::Transition;
+  using susml::tuplebased::Transition;
 
   enum class State { off, on };
   enum class Event { turnOn, turnOff };
@@ -155,7 +153,7 @@ TEST(TransitionTests, basic) {
 }
 
 TEST(TransitionTests, basicWithGuard) {
-  using susml::optimized::Transition;
+  using susml::tuplebased::Transition;
 
   bool val = false;
   auto getVal = [&val] { return val; };
@@ -171,7 +169,7 @@ TEST(TransitionTests, basicWithGuard) {
 }
 
 TEST(TransitionTests, basicWithAction) {
-  using susml::optimized::Transition;
+  using susml::tuplebased::Transition;
 
   bool val = false;
   auto setVal = [&val] { val = true; };
@@ -187,7 +185,7 @@ TEST(TransitionTests, basicWithAction) {
 }
 
 TEST(TransitionTests, multipleGuards) {
-  using susml::optimized::Transition;
+  using susml::tuplebased::Transition;
 
   bool valA = false;
   int valB = 0;
@@ -225,7 +223,7 @@ TEST(TransitionTests, multipleGuards) {
 }
 
 TEST(TransitionTests, multipleActions) {
-  using susml::optimized::Transition;
+  using susml::tuplebased::Transition;
 
   bool valA = false;
   int valB = 0;
@@ -251,7 +249,7 @@ TEST(TransitionTests, multipleActions) {
 }
 
 TEST(TransitionTests, multipleActionsExeuctionOrder) {
-  using susml::optimized::Transition;
+  using susml::tuplebased::Transition;
 
   std::vector<int> out{};
 
@@ -290,8 +288,8 @@ TEST(TransitionTests, multipleActionsExeuctionOrder) {
 }
 
 TEST(StateMachineTests, constructSourceArray) {
-  using Transition = susml::optimized::Transition<int, int>;
-  using StateMachine = susml::optimized::StateMachine<
+  using Transition = susml::tuplebased::Transition<int, int>;
+  using StateMachine = susml::tuplebased::StateMachine<
       std::tuple<Transition, Transition, Transition, Transition>>;
 
   Transition t1(1, 0, 0);
@@ -306,8 +304,8 @@ TEST(StateMachineTests, constructSourceArray) {
 }
 
 TEST(StateMachineTests, constructEventArray) {
-  using Transition = susml::optimized::Transition<int, int>;
-  using StateMachine = susml::optimized::StateMachine<
+  using Transition = susml::tuplebased::Transition<int, int>;
+  using StateMachine = susml::tuplebased::StateMachine<
       std::tuple<Transition, Transition, Transition, Transition>>;
 
   Transition t1(0, 0, 1);
@@ -322,7 +320,7 @@ TEST(StateMachineTests, constructEventArray) {
 }
 
 TEST(UtilityTests, tupleTail) {
-  using susml::optimized::utility::tail;
+  using susml::tuplebased::utility::tail;
 
   EXPECT_EQ(std::make_tuple(2, 3), tail(std::make_tuple(1, 2, 3)));
   EXPECT_EQ(std::make_tuple(2), tail(std::make_tuple(1, 2)));
@@ -334,9 +332,9 @@ TEST(StateMachineTests, isTransitionTakeableBasic) {
   enum class State { on, off };
   enum class Event { turnOn, turnOff };
 
-  using Transition = susml::optimized::Transition<State, Event>;
+  using Transition = susml::tuplebased::Transition<State, Event>;
   using StateMachine =
-      susml::optimized::StateMachine<std::tuple<Transition, Transition>>;
+      susml::tuplebased::StateMachine<std::tuple<Transition, Transition>>;
 
   Transition onToOff(State::on, State::off, Event::turnOff);
   Transition offToOn(State::off, State::on, Event::turnOn);
@@ -366,12 +364,12 @@ TEST(StateMachineTests, isTransitionTakeableWithGuards) {
   bool readyForOn = false;
   bool readyForOff = false;
 
-  optimized::Transition offToOn(State::off, State::on, Event::turnOn,
+  tuplebased::Transition offToOn(State::off, State::on, Event::turnOn,
                                 std::make_tuple([&] { return readyForOn; }));
-  optimized::Transition onToOff(State::on, State::off, Event::turnOff,
+  tuplebased::Transition onToOff(State::on, State::off, Event::turnOff,
                                 std::make_tuple([&] { return readyForOff; }));
 
-  using StateMachine = susml::optimized::StateMachine<
+  using StateMachine = susml::tuplebased::StateMachine<
       std::tuple<decltype(onToOff), decltype(offToOn)>>;
 
   ASSERT_FALSE(readyForOn);
@@ -429,9 +427,9 @@ TEST(StateMachineTests, basicTransition) {
   enum class State { on, off };
   enum class Event { turnOn, turnOff };
 
-  using Transition = susml::optimized::Transition<State, Event>;
+  using Transition = susml::tuplebased::Transition<State, Event>;
   using StateMachine =
-      susml::optimized::StateMachine<std::tuple<Transition, Transition>>;
+      susml::tuplebased::StateMachine<std::tuple<Transition, Transition>>;
 
   Transition onToOff(State::on, State::off, Event::turnOff);
   Transition offToOn(State::off, State::on, Event::turnOn);
@@ -465,18 +463,18 @@ TEST(StateMachineTests, transitionWithGaurdAndActions) {
 
   std::vector<std::string> reports;
 
-  optimized::Transition offToOn(
+  tuplebased::Transition offToOn(
       State::off, State::on, Event::turnOn,
       std::make_tuple([&] { return readyForOn; }),
       std::make_tuple([&] { reports.push_back("turnOn"); }));
-  optimized::Transition onToOff(
+  tuplebased::Transition onToOff(
       State::on, State::off, Event::turnOff,
       std::make_tuple([&] { return readyForOff; }),
       std::make_tuple([&] { reports.push_back("turnOff"); }));
 
   auto transitions = std::make_tuple(offToOn, onToOff);
 
-  using StateMachine = susml::optimized::StateMachine<decltype(transitions)>;
+  using StateMachine = susml::tuplebased::StateMachine<decltype(transitions)>;
 
   StateMachine m{transitions, State::off};
 
