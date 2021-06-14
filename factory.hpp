@@ -15,9 +15,9 @@
 
 #include "susml.hpp"
 #include <initializer_list>
+#include <string>
 #include <type_traits>
 #include <vector>
-#include <string>
 
 namespace susml::factory {
 struct NoneType {
@@ -101,7 +101,8 @@ struct PartialTransition {
 
   constexpr bool operator==(const PartialTransition &other) const {
     return ((source == other.source) && (target == other.target) &&
-            (event == other.event) &&
+            (event == other.event) && (guards.size() == other.guards.size()) &&
+            (actions.size() == other.actions.size()) &&
             std::equal(guards.begin(), guards.end(), other.guards.begin()) &&
             std::equal(actions.begin(), actions.end(), other.actions.begin()));
   }
