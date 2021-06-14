@@ -80,9 +80,6 @@ struct PartialTransition {
   }
 
   constexpr auto
-  // Transition<State, Event, Guard, Action,
-  //                      std::vector<Guard>,
-  //                      std::vector<Action>>
   make() const {
     constexpr bool hasGuards = !std::is_same<Guard, NoneType>::value;
     constexpr bool hasActions = !std::is_same<Action, NoneType>::value;
