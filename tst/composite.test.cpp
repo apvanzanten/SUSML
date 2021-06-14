@@ -13,7 +13,7 @@
 
 #include "gtest/gtest.h"
 
-#include "susml.hpp"
+#include "minimal.hpp"
 
 TEST(CompositeTests, controllerAndSubsystem) {
 
@@ -24,17 +24,17 @@ TEST(CompositeTests, controllerAndSubsystem) {
     enum class ControllerState { on, off };
     enum class ControllerEvent { turnOn, turnOff };
     using ControllerTransition =
-        susml::Transition<ControllerState, ControllerEvent, Guard, Action,
+        susml::minimal::Transition<ControllerState, ControllerEvent, Guard, Action,
                           std::vector<Guard>, std::vector<Action>>;
-    using Controller = susml::StateMachine<ControllerTransition,
+    using Controller = susml::minimal::StateMachine<ControllerTransition,
                                            std::vector<ControllerTransition>>;
 
     enum class SubsystemState { off, idle, running };
     enum class SubsystemEvent { turnOn, run, finish, turnOff };
     using SubsystemTransition =
-        susml::Transition<SubsystemState, SubsystemEvent, Guard, Action,
+        susml::minimal::Transition<SubsystemState, SubsystemEvent, Guard, Action,
                           std::vector<Guard>, std::vector<Action>>;
-    using Subsystem = susml::StateMachine<SubsystemTransition,
+    using Subsystem = susml::minimal::StateMachine<SubsystemTransition,
                                           std::vector<SubsystemTransition>>;
 
     // forward declaration to allow references to eachother

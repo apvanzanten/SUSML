@@ -13,7 +13,7 @@
 
 #include "gtest/gtest.h"
 
-#include "susml.hpp"
+#include "minimal.hpp"
 #include <array>
 #include <functional>
 #include <iostream>
@@ -40,9 +40,9 @@ enum class Event { turnOn, turnOff };
 using Guard = bool (*)();
 using Action = void (*)();
 
-using Transition = susml::Transition<State, Event, Guard, Action,
+using Transition = susml::minimal::Transition<State, Event, Guard, Action,
                                      std::vector<Guard>, std::vector<Action>>;
-using StateMachine = susml::StateMachine<Transition, std::vector<Transition>>;
+using StateMachine = susml::minimal::StateMachine<Transition, std::vector<Transition>>;
 
 auto createBasicMachine() {
   return StateMachine{

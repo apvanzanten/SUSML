@@ -4,7 +4,7 @@
 #include <benchmark/benchmark.h>
 
 #include "factory.hpp"
-#include "susml.hpp"
+#include "minimal.hpp"
 #include "tuplebased.hpp"
 
 namespace util {
@@ -41,7 +41,7 @@ constexpr auto makeStateMachine(std::size_t &counter) {
 } // namespace tuplebased
 
 namespace minimal {
-using namespace susml::factory;
+using namespace susml::minimal::factory;
 
 template <std::size_t Index, std::size_t TotalTransitions>
 constexpr auto makeTransition(std::size_t &counter) {
@@ -70,12 +70,13 @@ constexpr auto makeStateMachine(std::size_t &counter) {
   using TransitionContainer = decltype(transitions);
   using Transition = typename TransitionContainer::value_type;
 
-  return susml::StateMachine<Transition, TransitionContainer>{transitions, 0};
+  return susml::minimal::StateMachine<Transition, TransitionContainer>{transitions, 0};
 }
 } // namespace minimal
 
 template <typename StateMachine>
-static void runTest(benchmark::State &s, StateMachine & machine, size_t & counter) {
+static void runTest(benchmark::State &s, StateMachine &machine,
+                    size_t &counter) {
   for (auto _ : s) {
     for (int i = 0; i < s.range(0); i++) {
       machine.trigger(true);

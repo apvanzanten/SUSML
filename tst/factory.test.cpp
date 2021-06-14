@@ -18,7 +18,7 @@
 
 #include <algorithm>
 
-using namespace susml::factory;
+using namespace susml::minimal::factory;
 
 enum class State { on, off };
 std::ostream &operator<<(std::ostream &stream, State state) {

@@ -13,13 +13,13 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with SUSML. If not, see <https://www.gnu.org/licenses/>.
 
-#include "susml.hpp"
+#include "minimal.hpp"
 #include <initializer_list>
 #include <string>
 #include <type_traits>
 #include <vector>
 
-namespace susml::factory {
+namespace susml::minimal::factory {
 struct NoneType {
   constexpr bool operator==(const NoneType &) const { return true; }
   constexpr bool operator!=(const NoneType &) const { return false; }
@@ -79,8 +79,7 @@ struct PartialTransition {
         source, event, guards, newActions, target};
   }
 
-  constexpr auto
-  make() const {
+  constexpr auto make() const {
     constexpr bool hasGuards = !std::is_same<Guard, NoneType>::value;
     constexpr bool hasActions = !std::is_same<Action, NoneType>::value;
 
@@ -136,6 +135,6 @@ Do(std::initializer_list<Action> actions) {
   return {{}, {}, {}, actions, {}};
 }
 
-} // namespace susml::factory
+} // namespace susml::minimal::factory
 
 #endif
