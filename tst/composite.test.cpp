@@ -13,7 +13,7 @@
 
 #include "gtest/gtest.h"
 
-#include "minimal.hpp"
+#include "minimal/StateMachine.hpp"
 
 TEST(CompositeTests, controllerAndSubsystem) {
 

@@ -12,8 +12,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with SUSML. If not, see <https://www.gnu.org/licenses/>.
 
-#ifndef SUSML_OPTIMIZED_HPP
-#define SUSML_OPTIMIZED_HPP
+#ifndef TUPLEBASED_STATEMACHINE_HPP
+#define TUPLEBASED_STATEMACHINE_HPP
 
 #include <algorithm>
 #include <initializer_list>

@@ -14,7 +14,7 @@
 #include <iostream>
 #include <type_traits>
 
-#include "tuplebased.hpp"
+#include "tuplebased/StateMachine.hpp"
 
 using namespace susml::tuplebased;
 

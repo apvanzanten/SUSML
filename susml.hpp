@@ -14,7 +14,7 @@
 #ifndef SUSML_HPP
 #define SUSML_HPP
 
-#include "minimal.hpp"
+#include "minimal/StateMachine.hpp"
 
 namespace susml {
   using namespace minimal;

@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with SUSML. If not, see <https://www.gnu.org/licenses/>.
 
-#include "minimal.hpp"
+#include "StateMachine.hpp"
 #include <initializer_list>
 #include <string>
 #include <type_traits>

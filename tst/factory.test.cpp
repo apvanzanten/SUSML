@@ -14,7 +14,7 @@
 
 #include "gtest/gtest.h"
 
-#include "factory.hpp"
+#include "minimal/factory.hpp"
 
 #include <algorithm>
 

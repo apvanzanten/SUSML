@@ -3,9 +3,8 @@
 
 #include <benchmark/benchmark.h>
 
-#include "factory.hpp"
-#include "minimal.hpp"
-#include "tuplebased.hpp"
+#include "minimal/factory.hpp"
+#include "tuplebased/StateMachine.hpp"
 
 namespace util {
 

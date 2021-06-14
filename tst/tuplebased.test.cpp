@@ -13,7 +13,7 @@
 
 #include "gtest/gtest.h"
 
-#include "tuplebased.hpp"
+#include "tuplebased/StateMachine.hpp"
 
 bool trueGuard() { return true; }
 

@@ -11,8 +11,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with SUSML. If not, see <https://www.gnu.org/licenses/>.
 
-#ifndef MINIMAL_HPP
-#define MINIMAL_HPP
+#ifndef MINIMAL_STATEMACHINE_HPP
+#define MINIMAL_STATEMACHINE_HPP
 
 #include <type_traits>
 
