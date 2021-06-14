@@ -2,6 +2,9 @@
 
 #include "circleBench.util.hpp"
 
-BENCH_CIRCLE(64);
+using util::HasGuards;
+
+BENCH_CIRCLE(64, HasGuards::no);
+BENCH_CIRCLE(64, HasGuards::yes);
 
 BENCHMARK_MAIN();
