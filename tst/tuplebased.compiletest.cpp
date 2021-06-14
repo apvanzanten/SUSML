@@ -7,7 +7,14 @@
 #define NUM_TRIGGERS (100000)
 #endif
 
+#ifndef PRINT_INFO
+#define PRINT_INFO (false)
+#endif 
+
+#if PRINT_INFO == (true)
 #include <iostream>
+#endif 
+
 #include <type_traits>
 
 #include "tuplebased/StateMachine.hpp"
@@ -20,7 +27,12 @@ constexpr auto makeTransition(std::size_t &counter) {
   constexpr auto target = ((Index + 1) < TotalTransitions) ? Index + 1 : 0;
 
   constexpr auto guards = std::make_tuple();
-  auto actions = std::make_tuple([&] { counter += Index + 1; });
+  auto actions = std::make_tuple([&] { 
+    counter += Index + 1; 
+#if PRINT_INFO == (true)
+    std::cout << ".";
+#endif
+  });
 
   return Transition<int, int, decltype(guards), decltype(actions)>(
       source, target, true, guards, actions);
@@ -44,9 +56,11 @@ int main() {
     m.trigger(true);
   }
 
-  std::cout << std::boolalpha
+#if PRINT_INFO == (true)
+  std::cout << std::endl << std::boolalpha
     << "num transitions: " << NUM_TRANSITIONS << std::endl
     << "num triggers: " << NUM_TRIGGERS << std::endl;
+#endif 
 
-  return counter;
+  return (counter % 7);
 }
