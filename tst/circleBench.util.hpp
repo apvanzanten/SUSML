@@ -59,10 +59,10 @@ constexpr auto makeTransition(std::size_t &counter) {
   constexpr auto target = ((Index + 1) < TotalTransitions) ? Index + 1 : 0;
 
   const auto partial = From(source).To(target).On(true).Do(
-      {std::function([&] { counter += Index; })});
+      std::function([&] { counter += Index; }));
 
   if constexpr (WithGuard) {
-    return partial.If({std::function([&] { return ((counter++ & 1) == 0); })})
+    return partial.If(std::function([&] { return ((counter++ & 1) == 0); }))
         .make();
   } else if constexpr (!WithGuard) {
     return partial.make();
@@ -104,16 +104,18 @@ static void runTest(benchmark::State &s, StateMachine &machine,
 template <std::size_t NumTransitions, util::HasGuards hasGuards>
 static void benchTupleBased(benchmark::State &s) {
   std::size_t counter = 0;
-  auto m = tuplebased::makeStateMachine<
-      NumTransitions, (hasGuards == util::HasGuards::yes)>(counter);
+  auto m = tuplebased::makeStateMachine<NumTransitions,
+                                        (hasGuards == util::HasGuards::yes)>(
+      counter);
   runTest(s, m, counter);
 }
 
 template <std::size_t NumTransitions, util::HasGuards hasGuards>
 static void benchMinimal(benchmark::State &s) {
   std::size_t counter = 0;
-  auto m = minimal::makeStateMachine<
-      NumTransitions, (hasGuards == util::HasGuards::yes)>(counter);
+  auto m =
+      minimal::makeStateMachine<NumTransitions,
+                                (hasGuards == util::HasGuards::yes)>(counter);
   runTest(s, m, counter);
 }
 } // namespace util

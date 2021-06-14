@@ -25,124 +25,83 @@ struct NoneType {
 };
 
 template <typename StateT = NoneType, typename EventT = NoneType,
-          typename GuardT = NoneType, typename ActionT = NoneType,
-          typename GuardContainerT = NoneType,
-          typename ActionContainerT = NoneType>
+          typename GuardT = NoneType, typename ActionT = NoneType>
 struct PartialTransition {
   using State = StateT;
   using Event = EventT;
   using Guard = GuardT;
   using Action = ActionT;
-  using GuardContainer = GuardContainerT;
-  using ActionContainer = ActionContainerT;
 
-  static constexpr bool HasGuards = !std::is_same<Guard, NoneType>::value;
-  static constexpr bool HasActions = !std::is_same<Action, NoneType>::value;
+  static constexpr bool hasGuard() { return !(std::is_same<Guard, NoneType>::value || std::is_same<Guard, const NoneType>::value);}
+  static constexpr bool hasAction() { return !(std::is_same<Action, NoneType>::value || std::is_same<Action, const NoneType>::value);}
 
-  State source;
-  Event event;
-  GuardContainer guards;
-  ActionContainer actions;
-  State target;
+  State source{};
+  State target{};
+  Event event{};
+  Guard guard{};
+  Action action{};
 
   template <typename NewState> constexpr auto From(NewState newSource) const {
     if constexpr (std::is_same<State, NewState>::value) {
       // we already have a target (of the same type), keep it
-      return PartialTransition{newSource, event, guards, actions, target};
+      return PartialTransition{newSource, target, event, guard, action};
     }
     // we need to set a new target, we will create a self-loop
-    return PartialTransition<NewState, Event, Guard, Action, GuardContainer,
-                             ActionContainer>{newSource, event, guards, actions,
-                                              newSource};
+    return PartialTransition<NewState, Event, Guard, Action>{
+        newSource, newSource, event, guard, action};
   }
 
   template <typename NewState> constexpr auto To(NewState newTarget) const {
     if constexpr (std::is_same<State, NewState>::value) {
       // we already have a source (of the same type), keep it
-      return PartialTransition<State, Event, Guard, Action, GuardContainer,
-                               ActionContainer>{source, event, guards, actions,
-                                                newTarget};
+      return PartialTransition<State, Event, Guard, Action>{
+          source, newTarget, event, guard, action};
     }
     // we need to set a new source, we will create a self-loop
-    return PartialTransition<NewState, Event, Guard, Action, GuardContainer,
-                             ActionContainer>{newTarget, event, guards, actions,
-                                              newTarget};
+    return PartialTransition<NewState, Event, Guard, Action>{
+        newTarget, newTarget, event, guard, action};
   }
 
   template <typename NewEvent> constexpr auto On(NewEvent newEvent) const {
-    return PartialTransition<State, NewEvent, Guard, Action, GuardContainer,
-                             ActionContainer>{source, newEvent, guards, actions,
-                                              target};
+    return PartialTransition<State, NewEvent, Guard, Action>{
+        source, target, newEvent, guard, action};
   }
 
-  template <typename NewGuard,
-            typename NewGuardContainer = std::vector<NewGuard>>
-  constexpr PartialTransition<State, Event, NewGuard, Action, NewGuardContainer,
-                              ActionContainer>
-  If(std::initializer_list<NewGuard> newGuards) const {
-    return {source, event, newGuards, actions, target};
+  template <typename NewGuard = bool (*)()>
+  constexpr PartialTransition<State, Event, NewGuard, Action>
+  If(NewGuard newGuard) const {
+    return {source, target, event, newGuard, action};
   }
 
-  template <typename NewGuard,
-            typename NewGuardContainer = std::vector<NewGuard>>
-  constexpr PartialTransition<State, Event, NewGuard, Action, NewGuardContainer,
-                              ActionContainer>
-  If(const std::vector<NewGuard> &newGuards) const {
-    return {source, event, newGuards, actions, target};
+  template <typename NewAction = void (*)()>
+  constexpr PartialTransition<State, Event, Guard, NewAction>
+  Do(NewAction newAction) const {
+    return {source, target, event, guard, newAction};
   }
 
-  constexpr auto If() const {
-    using NewGuard = bool (*)();
-    return If<NewGuard>({});
-  }
-
-  template <typename NewAction,
-            typename NewActionContainer = std::vector<NewAction>>
-  constexpr PartialTransition<State, Event, Guard, NewAction, GuardContainer,
-                              NewActionContainer>
-  Do(std::initializer_list<NewAction> newActions) const {
-    return {source, event, guards, newActions, target};
-  }
-
-  template <typename NewAction,
-            typename NewActionContainer = std::vector<NewAction>>
-  constexpr PartialTransition<State, Event, Guard, NewAction, GuardContainer,
-                              NewActionContainer>
-  Do(const std::vector<NewAction> &newActions) const {
-    return {source, event, guards, newActions, target};
-  }
-
-  constexpr auto Do() const {
-    using NewAction = void (*)();
-    return Do<NewAction>({});
-  }
+  constexpr auto If() const { return If<NoneType>({}); }
+  constexpr auto Do() const { return Do<NoneType>({}); }
 
   constexpr auto make() const {
-    if constexpr (!HasGuards) {
-      return this->If().make();
-    } else if constexpr (!HasActions) {
-      return this->Do().make();
-    } else if constexpr (HasGuards && HasActions) {
-      return Transition<State, Event, Guard, Action, GuardContainer,
-                        ActionContainer>{source, event, guards, actions,
-                                         target};
+    if constexpr (!hasGuard()) {
+      return this->If({unitGuard}).make();
+    } else if constexpr (!hasAction()) {
+      return this->Do({unitAction}).make();
+    } else if constexpr (hasGuard() && hasAction()) {
+      return Transition<State, Event, Guard, Action>{source, target, event,
+                                                     guard, action};
     }
   }
-
-  constexpr bool hasGuards() const { return HasGuards; }
-  constexpr bool hasActions() const { return HasActions; }
 
   template <typename... Types>
   constexpr bool operator==(const PartialTransition<Types...> &) const {
     return false;
   }
 
-  constexpr bool operator==(
-      const PartialTransition<State, Event, Guard, Action, GuardContainer,
-                              ActionContainer> &other) const {
+  constexpr bool operator==(const PartialTransition &other) const {
     return (source == other.source) && (target == other.target) &&
-           (event == other.event) && (guards == other.guards) &&
-           (actions == other.actions);
+           (event == other.event) && (guard == other.guard) &&
+           (action == other.action);
   }
 
   template <typename... Types>
@@ -154,30 +113,28 @@ struct PartialTransition {
 template <typename State>
 constexpr PartialTransition<State> From(State source) {
   // start as a self-loop, as we need to fill in something for the target state
-  return {source, {}, {}, {}, source};
+  return {source, source};
 }
 
 template <typename State> constexpr PartialTransition<State> To(State target) {
   // start as a self-loop, as we need to fill in something for the source state
-  return {target, {}, {}, {}, target};
+  return {target, target};
 }
 
 template <typename Event>
 constexpr PartialTransition<NoneType, Event> On(Event newEvent) {
-  return {{}, newEvent, {}, {}, {}};
+  return {{}, {}, newEvent};
 }
 
-template <typename Guard, typename GuardContainer = std::vector<Guard>>
-constexpr PartialTransition<NoneType, NoneType, Guard, NoneType, GuardContainer>
-If(std::initializer_list<Guard> guards) {
-  return {{}, {}, guards, {}, {}};
+template <typename Guard>
+constexpr PartialTransition<NoneType, NoneType, Guard> If(Guard guard) {
+  return {{}, {}, {}, guard};
 }
 
-template <typename Action, typename ActionContainer = std::vector<Action>>
-constexpr PartialTransition<NoneType, NoneType, NoneType, Action, NoneType,
-                            ActionContainer>
-Do(std::initializer_list<Action> actions) {
-  return {{}, {}, {}, actions, {}};
+template <typename Action>
+constexpr PartialTransition<NoneType, NoneType, NoneType, Action>
+Do(Action action) {
+  return {{}, {}, {}, {}, action};
 }
 
 } // namespace susml::minimal::factory

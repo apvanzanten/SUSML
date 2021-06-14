@@ -18,19 +18,21 @@
 
 namespace susml::minimal {
 
+constexpr bool unitGuard() { return true; }
+constexpr void unitAction() { return; }
+
 // Transition is defined separately outside of Statemachine, such that the user
 // can specify what TransitionContainer to use in StateMachine.
 template <typename StateT, typename EventT,
-          typename GuardT,  // must be invocable bool()
-          typename ActionT, // must be invocable void()
-          typename GuardContainerT, typename ActionContainerT>
+          typename GuardT = bool (*)(), // must be invocable bool()
+          typename ActionT = void (*)() // must be invocable void()
+          >
 struct Transition {
   using State = StateT;
   using Event = EventT;
   using Guard = GuardT;
   using Action = ActionT;
-  using GuardContainer = GuardContainerT;
-  using ActionContainer = ActionContainerT;
+
 
   static_assert(std::is_invocable<Guard>::value, "Guard should be invocable");
   static_assert(std::is_invocable<Action>::value, "Action should be invocable");
@@ -40,31 +42,12 @@ struct Transition {
   static_assert(
       std::is_same<typename std::invoke_result<Action>::type, void>::value,
       "Action should return void.");
-  static_assert(std::is_same<Guard, typename GuardContainer::value_type>::value,
-                "GuardContainer should be Container of Guards.");
-  static_assert(
-      std::is_same<Action, typename ActionContainer::value_type>::value,
-      "ActionContainer should be Container of Actions.");
 
   State source;
-  Event event;
-  GuardContainer guards;
-  ActionContainer actions;
   State target;
-
-  constexpr bool checkGuards() const {
-    for (const auto &g : guards) {
-      if (!g())
-        return false;
-    }
-    return true;
-  }
-
-  constexpr void executeActions() {
-    for (auto &a : actions) {
-      a();
-    }
-  }
+  Event event;
+  Guard guard = {unitGuard};
+  Action action = {unitAction};
 };
 
 template <typename TransitionT, typename TransitionContainerT>
@@ -83,10 +66,10 @@ struct StateMachine {
 
   constexpr void trigger(const Event &event) {
     for (auto &t : transitions) {
-      if (t.source == currentState && t.event == event && t.checkGuards()) {
-        t.executeActions();
+      if (t.source == currentState && t.event == event && t.guard()) {
+        t.action();
         currentState = t.target;
-        return;
+        break;
       }
     }
   }
