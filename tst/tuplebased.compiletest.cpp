@@ -4,11 +4,7 @@
 #endif
 
 #ifndef NUM_TRIGGERS
-#define NUM_TRIGGERS (100)
-#endif
-
-#ifndef USE_ASSERTS
-#define USE_ASSERTS (false)
+#define NUM_TRIGGERS (100000)
 #endif
 
 #include <iostream>
@@ -26,7 +22,7 @@ constexpr auto makeTransition(std::size_t &counter) {
   constexpr auto guards = std::make_tuple();
   auto actions = std::make_tuple([&] { counter += Index + 1; });
 
-  return Transition<int, int, decltype(guards), decltype(actions), USE_ASSERTS>(
+  return Transition<int, int, decltype(guards), decltype(actions)>(
       source, target, true, guards, actions);
 }
 
@@ -42,14 +38,13 @@ int main() {
 
   auto transitions =
       makeTransitions(std::make_index_sequence<NUM_TRANSITIONS>(), counter);
-  auto m = StateMachine<int, int, decltype(transitions), USE_ASSERTS>{transitions, 0};
+  auto m = StateMachine<int, int, decltype(transitions)>{transitions, 0};
 
   for (int i = 0; i < NUM_TRIGGERS; i++) {
     m.trigger(true);
   }
 
   std::cout << std::boolalpha
-    << "use asserts: " << USE_ASSERTS << std::endl
     << "num transitions: " << NUM_TRANSITIONS << std::endl
     << "num triggers: " << NUM_TRIGGERS << std::endl;
 
