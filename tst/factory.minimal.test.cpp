@@ -14,11 +14,11 @@
 
 #include "gtest/gtest.h"
 
-#include "factory.hpp"
+#include "minimal/factory.hpp"
 
 #include <algorithm>
 
-using namespace susml::factory;
+using namespace susml::minimal::factory;
 
 enum class State { on, off };
 std::ostream &operator<<(std::ostream &stream, State state) {
@@ -37,41 +37,39 @@ constexpr bool guardFalse() { return false; }
 constexpr void actionA() {}
 constexpr void actionB() {}
 
-template <typename T> constexpr auto funcName(T ptr) {
-  if constexpr (std::is_same<T, bool (*)()>::value) {
-    if (ptr == guardTrue)
-      return "guardTrue";
-    if (ptr == guardFalse)
-      return "guardFalse";
-  } else if constexpr (std::is_same<T, void (*)()>::value) {
-    if (ptr == actionA)
-      return "actionA";
-    if (ptr == actionB)
-      return "actionB";
-  }
-  return "UNKNOWN";
-}
-
-constexpr PartialTransition<State, Event, bool (*)(), void (*)()>
+const PartialTransition<State, Event, bool (*)(), void (*)(),
+                            std::vector<bool (*)()>,
+                            std::vector<void (*)()>>
     fullyPopulated{State::off,
                    Event::turnOn,
                    {guardTrue, guardFalse},
                    {actionA, actionB},
                    State::on};
+  
+std::ostream & operator<< (std::ostream &stream, const NoneType &) {
+  stream << "None";
+  return stream;
+}
 
+template <typename State, typename Event, typename Guard,
+            typename Action, typename GuardContainer,
+            typename ActionContainer>
 std::ostream &
 operator<<(std::ostream &stream,
-           const PartialTransition<State, Event, bool (*)(), void (*)()> &t) {
-  stream << "From(" << t.source << ").To(" << t.target << ").On(" << t.event
-         << ").If( ";
-  for (const auto &g : t.guards) {
-    stream << funcName(g) << " ";
+           const PartialTransition<State, Event, Guard, Action, GuardContainer, ActionContainer> &t) {
+  stream << "From(" << t.source << ").To(" << t.target << ").On(" << t.event <<")";
+
+  if (t.hasGuards()) {
+    stream << ".If(...)";
+  } else {
+    stream << ".If(None)" ;
   }
-  stream << ").Do( ";
-  for (const auto &a : t.actions) {
-    stream << funcName(a) << " ";
+  if (t.hasActions()) {
+    stream << ".Do(...)";
+  } else {
+    stream << ".Do(None)";
   }
-  stream << ");";
+  stream << ";";
   return stream;
 }
 
@@ -150,17 +148,14 @@ TEST(PartialTransitionTests, On) {
 }
 
 TEST(PartialTransitionTests, If) {
-  const auto guards = {guardTrue};  
+  const auto guards = {guardTrue};
   const auto guardsModified = {guardFalse};
 
   const auto t = If(guards);
-  EXPECT_TRUE(std::equal(t.guards.begin(),
-                         t.guards.end(),
-                         guards.begin()));
-      
+  EXPECT_TRUE(std::equal(t.guards.begin(), t.guards.end(), guards.begin()));
+
   const auto tModified = t.If(guardsModified);
-  EXPECT_TRUE(std::equal(tModified.guards.begin(),
-                         tModified.guards.end(),
+  EXPECT_TRUE(std::equal(tModified.guards.begin(), tModified.guards.end(),
                          guardsModified.begin()));
 
   const auto fpNoGuards = fullyPopulated.If();
@@ -180,27 +175,22 @@ TEST(PartialTransitionTests, If) {
 
   EXPECT_NE(fullyPopulated.guards.size(), fpModified.guards.size());
 
-  EXPECT_TRUE(std::equal(fpModified.guards.begin(),
-                         fpModified.guards.end(),
+  EXPECT_TRUE(std::equal(fpModified.guards.begin(), fpModified.guards.end(),
                          guardsModified.begin()));
 
   const auto fpUnmodified = fpModified.If(fullyPopulated.guards);
   EXPECT_EQ(fullyPopulated, fpUnmodified);
 }
 
-
 TEST(PartialTransitionTests, Do) {
   const auto actions = {actionA};
   const auto actionsModified = {actionB};
 
   const auto t = Do(actions);
-  EXPECT_TRUE(std::equal(t.actions.begin(),
-                         t.actions.end(),
-                         actions.begin()));
-      
+  EXPECT_TRUE(std::equal(t.actions.begin(), t.actions.end(), actions.begin()));
+
   const auto tModified = t.Do(actionsModified);
-  EXPECT_TRUE(std::equal(tModified.actions.begin(),
-                         tModified.actions.end(),
+  EXPECT_TRUE(std::equal(tModified.actions.begin(), tModified.actions.end(),
                          actionsModified.begin()));
 
   const auto fpNoActions = fullyPopulated.Do();
@@ -220,8 +210,7 @@ TEST(PartialTransitionTests, Do) {
 
   EXPECT_NE(fullyPopulated.actions.size(), fpModified.actions.size());
 
-  EXPECT_TRUE(std::equal(fpModified.actions.begin(),
-                         fpModified.actions.end(),
+  EXPECT_TRUE(std::equal(fpModified.actions.begin(), fpModified.actions.end(),
                          actionsModified.begin()));
 
   const auto fpUnmodified = fpModified.Do(fullyPopulated.actions);
@@ -267,6 +256,89 @@ TEST(PartialTransitionTests, FullConstruction) {
       std::equal(guards.begin(), guards.end(), transition.guards.begin()));
   EXPECT_TRUE(
       std::equal(actions.begin(), actions.end(), transition.actions.begin()));
+}
+
+TEST(PartialTransitionTests, makeFullyPopulated) {
+  const auto guards = {guardFalse, guardTrue};
+  std::cout << "guardFalse: " << reinterpret_cast<void *>(guardFalse)
+            << std::endl;
+  std::cout << "guardTrue: " << reinterpret_cast<void *>(guardTrue)
+            << std::endl;
+
+  const auto partial = From(State::on)
+                           .To(State::off)
+                           .On(Event::turnOff)
+                           .If(guards)
+                           .Do({actionB, actionA});
+  const auto t = partial.make();
+  EXPECT_EQ(partial.source, t.source);
+  EXPECT_EQ(partial.target, t.target);
+  EXPECT_EQ(partial.event, t.event);
+
+  ASSERT_EQ(partial.guards.size(), t.guards.size());
+  EXPECT_TRUE(std::equal(partial.guards.begin(), partial.guards.end(),
+                         t.guards.begin()));
+
+  ASSERT_EQ(partial.actions.size(), t.actions.size());
+  EXPECT_TRUE(std::equal(partial.actions.begin(), partial.actions.end(),
+                         t.actions.begin()));
+}
+
+TEST(PartialTransitionTests, makeWithoutGuardsOrActions) {
+  const auto partial = From(State::off).To(State::on).On(Event::turnOn);
+  const auto t = partial.make();
+
+  EXPECT_EQ(partial.source, t.source);
+  EXPECT_EQ(partial.target, t.target);
+  EXPECT_EQ(partial.event, t.event);
+
+  ASSERT_FALSE(partial.hasGuards());
+  ASSERT_FALSE(partial.hasActions());
+  EXPECT_EQ(0, t.guards.size());
+  EXPECT_EQ(0, t.actions.size());
+}
+
+TEST(PartialTransitionTests, makeWithoutGuards) {
+  const auto partial =
+      From(State::off).To(State::on).On(Event::turnOn).Do({actionA, actionB});
+  const auto t = partial.make();
+
+  EXPECT_EQ(partial.source, t.source);
+  EXPECT_EQ(partial.target, t.target);
+  EXPECT_EQ(partial.event, t.event);
+
+  ASSERT_FALSE(partial.hasGuards());
+  EXPECT_EQ(0, t.guards.size());
+
+  ASSERT_TRUE(partial.hasActions());
+  ASSERT_EQ(2, partial.actions.size());
+  EXPECT_EQ(2, t.actions.size());
+
+  ASSERT_EQ(partial.actions.size(), t.actions.size());
+  EXPECT_TRUE(std::equal(partial.actions.begin(), partial.actions.end(),
+                         t.actions.begin()));
+}
+
+TEST(PartialTransitionTests, makeWithoutActions) {
+  const auto partial = From(State::off)
+                           .To(State::on)
+                           .On(Event::turnOn)
+                           .If({guardTrue, guardFalse});
+  const auto t = partial.make();
+
+  EXPECT_EQ(partial.source, t.source);
+  EXPECT_EQ(partial.target, t.target);
+  EXPECT_EQ(partial.event, t.event);
+
+  ASSERT_FALSE(partial.hasActions());
+  EXPECT_EQ(0, t.actions.size());
+
+  ASSERT_EQ(2, partial.guards.size());
+  EXPECT_EQ(2, t.guards.size());
+
+  ASSERT_EQ(partial.guards.size(), t.guards.size());
+  EXPECT_TRUE(std::equal(partial.guards.begin(), partial.guards.end(),
+                         t.guards.begin()));
 }
 
 int main(int argc, char **argv) {

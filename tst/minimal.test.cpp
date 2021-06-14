@@ -13,10 +13,95 @@
 
 #include "gtest/gtest.h"
 
-#include "susml.hpp"
+#include "minimal/StateMachine.hpp"
+#include <array>
+#include <functional>
+#include <iostream>
+#include <vector>
+
+namespace Guards {
+int numUnitGuardCalled = 0;
+bool unitGuard() {
+  numUnitGuardCalled++;
+  return true;
+}
+} // namespace Guards
+
+namespace Actions {
+int numUnitActionCalled = 0;
+void unitAction() { numUnitActionCalled++; }
+} // namespace Actions
+
+enum class State { off, on };
+const State INITIAL_STATE = State::off;
+
+enum class Event { turnOn, turnOff };
+
+using Guard = bool (*)();
+using Action = void (*)();
+
+using Transition = susml::minimal::Transition<State, Event, Guard, Action,
+                                     std::vector<Guard>, std::vector<Action>>;
+using StateMachine = susml::minimal::StateMachine<Transition, std::vector<Transition>>;
+
+auto createBasicMachine() {
+  return StateMachine{
+      {{
+           State::off,          // transition from state off
+           Event::turnOn,       // transition in response to turnOn event
+           {Guards::unitGuard}, // transition only if unitGuard return true
+           {Actions::unitAction,
+            Actions::unitAction}, // on transition, call unitAction twice
+           State::on              // transition to state on
+       },
+       {
+           State::on,             // transition from state on
+           Event::turnOff,        // transition in response to turnOff
+                                  // event
+           {Guards::unitGuard},   // transition only if unitGuard returns true
+           {Actions::unitAction}, // on transition, call unitAction
+           State::off             // transition to state off
+       },
+       {
+           State::on,             // transition from state on
+           Event::turnOn,         // transition in response to turnOn event
+           {},                    // transition always
+           {Actions::unitAction}, // on transition, call unitAction
+           State::on              // transition to state on
+       }},
+      INITIAL_STATE};
+}
+
+TEST(BasicTest, GoodWeather) {
+  auto m = createBasicMachine();
+  Guards::numUnitGuardCalled = 0;
+  Actions::numUnitActionCalled = 0;
+
+  EXPECT_EQ(m.currentState, INITIAL_STATE);
+  EXPECT_EQ(m.currentState, State::off);
+
+  m.trigger(Event::turnOn);
+  EXPECT_EQ(m.currentState, State::on);
+  EXPECT_EQ(Guards::numUnitGuardCalled, 1);
+  EXPECT_EQ(Actions::numUnitActionCalled, 2);
+
+  m.trigger(Event::turnOn);
+  EXPECT_EQ(m.currentState, State::on);
+  EXPECT_EQ(Guards::numUnitGuardCalled, 1);
+  EXPECT_EQ(Actions::numUnitActionCalled, 3);
+
+  m.trigger(Event::turnOff);
+  EXPECT_EQ(m.currentState, State::off);
+  EXPECT_EQ(Guards::numUnitGuardCalled, 2);
+  EXPECT_EQ(Actions::numUnitActionCalled, 4);
+
+  m.trigger(Event::turnOff);
+  EXPECT_EQ(m.currentState, State::off);
+  EXPECT_EQ(Guards::numUnitGuardCalled, 2);
+  EXPECT_EQ(Actions::numUnitActionCalled, 4);
+}
 
 TEST(CompositeTests, controllerAndSubsystem) {
-
   struct System {
     using Guard = std::function<bool()>;
     using Action = std::function<void()>;
@@ -24,17 +109,17 @@ TEST(CompositeTests, controllerAndSubsystem) {
     enum class ControllerState { on, off };
     enum class ControllerEvent { turnOn, turnOff };
     using ControllerTransition =
-        susml::Transition<ControllerState, ControllerEvent, Guard, Action,
+        susml::minimal::Transition<ControllerState, ControllerEvent, Guard, Action,
                           std::vector<Guard>, std::vector<Action>>;
-    using Controller = susml::StateMachine<ControllerTransition,
+    using Controller = susml::minimal::StateMachine<ControllerTransition,
                                            std::vector<ControllerTransition>>;
 
     enum class SubsystemState { off, idle, running };
     enum class SubsystemEvent { turnOn, run, finish, turnOff };
     using SubsystemTransition =
-        susml::Transition<SubsystemState, SubsystemEvent, Guard, Action,
+        susml::minimal::Transition<SubsystemState, SubsystemEvent, Guard, Action,
                           std::vector<Guard>, std::vector<Action>>;
-    using Subsystem = susml::StateMachine<SubsystemTransition,
+    using Subsystem = susml::minimal::StateMachine<SubsystemTransition,
                                           std::vector<SubsystemTransition>>;
 
     // forward declaration to allow references to eachother

@@ -12,8 +12,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with SUSML. If not, see <https://www.gnu.org/licenses/>.
 
-#ifndef SUSML_OPTIMIZED_HPP
-#define SUSML_OPTIMIZED_HPP
+#ifndef TUPLEBASED_STATEMACHINE_HPP
+#define TUPLEBASED_STATEMACHINE_HPP
 
 #include <algorithm>
 #include <initializer_list>
@@ -81,16 +81,16 @@ template <typename ActionTuple> constexpr bool isActionTupleType() {
 } // namespace validate
 
 template <typename StateT, typename EventT, typename GuardsT = std::tuple<>,
-          typename ActionsT = std::tuple<>, bool UseAsserts = true>
+          typename ActionsT = std::tuple<>>
 struct Transition {
   using State = StateT;
   using Event = EventT;
   using Guards = GuardsT;
   using Actions = ActionsT;
 
-  static_assert(!UseAsserts || validate::isGuardTupleType<Guards>(),
+  static_assert(validate::isGuardTupleType<Guards>(),
                 "Guards should be tuple of invocables returning bool");
-  static_assert(!UseAsserts || validate::isActionTupleType<Actions>(),
+  static_assert(validate::isActionTupleType<Actions>(),
                 "Actions should be tuple of invocables return void");
 
   State source;
@@ -170,24 +170,21 @@ constexpr bool isValidTransitionTupleType() {
 
 } // namespace validate
 
-template <typename StateT, typename EventT, typename TransitionsT,
-          bool UseAsserts = true>
+template <typename StateT, typename EventT, typename TransitionsT>
 class StateMachine {
 public:
   using TransitionTuple = TransitionsT;
   using State = StateT;
   using Event = EventT;
 
+  static_assert(
+      validate::isValidTransitionTupleType<TransitionTuple, State, Event>(),
+      "StateMachine needs at least one transition, and all "
+      "transitions must have the correct State type and Event type.");
+
   constexpr StateMachine(const TransitionTuple &transitions,
                          const State &initialState)
-      : mTransitions(transitions), mCurrentState(initialState) {
-    if constexpr (UseAsserts) {
-      static_assert(
-          validate::isValidTransitionTupleType<TransitionTuple, State, Event>(),
-          "StateMachine needs at least one transition, and all "
-          "transitions must have the correct State type and Event type.");
-    }
-  }
+      : mTransitions(transitions), mCurrentState(initialState) {}
 
   constexpr void trigger(const Event &event) {
     constexpr std::size_t numTransitions =

@@ -4,17 +4,20 @@
 #endif
 
 #ifndef NUM_TRIGGERS
-#define NUM_TRIGGERS (100)
+#define NUM_TRIGGERS (100000)
 #endif
 
-#ifndef USE_ASSERTS
-#define USE_ASSERTS (false)
-#endif
+#ifndef PRINT_INFO
+#define PRINT_INFO (false)
+#endif 
 
+#if PRINT_INFO == (true)
 #include <iostream>
+#endif 
+
 #include <type_traits>
 
-#include "tuplebased.hpp"
+#include "tuplebased/StateMachine.hpp"
 
 using namespace susml::tuplebased;
 
@@ -24,9 +27,14 @@ constexpr auto makeTransition(std::size_t &counter) {
   constexpr auto target = ((Index + 1) < TotalTransitions) ? Index + 1 : 0;
 
   constexpr auto guards = std::make_tuple();
-  auto actions = std::make_tuple([&] { counter += Index + 1; });
+  auto actions = std::make_tuple([&] { 
+    counter += Index + 1; 
+#if PRINT_INFO == (true)
+    std::cout << ".";
+#endif
+  });
 
-  return Transition<int, int, decltype(guards), decltype(actions), USE_ASSERTS>(
+  return Transition<int, int, decltype(guards), decltype(actions)>(
       source, target, true, guards, actions);
 }
 
@@ -42,16 +50,17 @@ int main() {
 
   auto transitions =
       makeTransitions(std::make_index_sequence<NUM_TRANSITIONS>(), counter);
-  auto m = StateMachine<int, int, decltype(transitions), USE_ASSERTS>{transitions, 0};
+  auto m = StateMachine<int, int, decltype(transitions)>{transitions, 0};
 
   for (int i = 0; i < NUM_TRIGGERS; i++) {
     m.trigger(true);
   }
 
-  std::cout << std::boolalpha
-    << "use asserts: " << USE_ASSERTS << std::endl
+#if PRINT_INFO == (true)
+  std::cout << std::endl << std::boolalpha
     << "num transitions: " << NUM_TRANSITIONS << std::endl
     << "num triggers: " << NUM_TRIGGERS << std::endl;
+#endif 
 
-  return counter;
+  return (counter % 7);
 }
