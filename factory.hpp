@@ -1,4 +1,5 @@
-
+#ifndef FACTORY_HPP
+#define FACTORY_HPP
 // This file is part of Still Untitled State Machine Library (SUSML).
 //    Copyright (C) 2021 A.P. van Zanten
 // SUSML is free software: you can redistribute it and/or modify
@@ -14,7 +15,9 @@
 
 #include "susml.hpp"
 #include <initializer_list>
+#include <string>
 #include <type_traits>
+#include <vector>
 
 namespace susml::factory {
 struct NoneType {
@@ -38,8 +41,7 @@ struct PartialTransition {
   Actions actions;
   State target;
 
-  template <typename NewState>
-  constexpr PartialTransition From(NewState newSource) const {
+  template <typename NewState> constexpr auto From(NewState newSource) const {
     if constexpr (std::is_same<State, NewState>::value) {
       // we already have a target (of the same type), keep it
       return PartialTransition{newSource, event, guards, actions, target};
@@ -65,27 +67,39 @@ struct PartialTransition {
         source, newEvent, guards, actions, target};
   }
 
-  template <typename NewGuard>
-  constexpr auto If(std::initializer_list<NewGuard> newGuards) const {
+  template <typename NewGuard = bool (*)()>
+  constexpr auto If(std::initializer_list<NewGuard> newGuards = {}) const {
     return PartialTransition<State, Event, NewGuard, Action>{
         source, event, newGuards, actions, target};
   }
 
-  template <typename NewAction>
-  constexpr auto Do(std::initializer_list<NewAction> newActions) const {
+  template <typename NewAction = void (*)()>
+  constexpr auto Do(std::initializer_list<NewAction> newActions = {}) const {
     return PartialTransition<State, Event, Guard, NewAction>{
         source, event, guards, newActions, target};
   }
 
-  constexpr Transition<State, Event, Guard, Action, std::vector<Guard>,
-                       std::vector<Action>>
+  constexpr auto
   make() const {
-    return {source, event, guards, actions, target};
+    constexpr bool hasGuards = !std::is_same<Guard, NoneType>::value;
+    constexpr bool hasActions = !std::is_same<Action, NoneType>::value;
+
+    if constexpr (!hasGuards) {
+      return this->If().make();
+    } else if constexpr (!hasActions) {
+      return this->Do().make();
+    } else if constexpr (hasGuards && hasActions) {
+      using Guards = std::vector<Guard>;
+      using Actions = std::vector<Action>;
+      return Transition<State, Event, Guard, Action, Guards, Actions>{
+          source, event, guards, actions, target};
+    }
   }
 
   constexpr bool operator==(const PartialTransition &other) const {
     return ((source == other.source) && (target == other.target) &&
-            (event == other.event) &&
+            (event == other.event) && (guards.size() == other.guards.size()) &&
+            (actions.size() == other.actions.size()) &&
             std::equal(guards.begin(), guards.end(), other.guards.begin()) &&
             std::equal(actions.begin(), actions.end(), other.actions.begin()));
   }
@@ -123,3 +137,5 @@ Do(std::initializer_list<Action> actions) {
 }
 
 } // namespace susml::factory
+
+#endif

@@ -37,8 +37,12 @@ const State INITIAL_STATE = State::off;
 
 enum class Event { turnOn, turnOff };
 
-using Transition = susml::Transition<State, Event>;
-using StateMachine = susml::StateMachine<Transition>;
+using Guard = bool (*)();
+using Action = void (*)();
+
+using Transition = susml::Transition<State, Event, Guard, Action,
+                                     std::vector<Guard>, std::vector<Action>>;
+using StateMachine = susml::StateMachine<Transition, std::vector<Transition>>;
 
 auto createBasicMachine() {
   return StateMachine{
