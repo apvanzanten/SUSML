@@ -2,6 +2,6 @@
 
 #include "circleBench.util.hpp"
 
-BENCH_CIRCLE(32);
+BENCH_CIRCLE(64);
 
 BENCHMARK_MAIN();

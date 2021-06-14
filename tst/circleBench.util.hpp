@@ -69,7 +69,8 @@ constexpr auto makeStateMachine(std::size_t &counter) {
   using TransitionContainer = decltype(transitions);
   using Transition = typename TransitionContainer::value_type;
 
-  return susml::minimal::StateMachine<Transition, TransitionContainer>{transitions, 0};
+  return susml::minimal::StateMachine<Transition, TransitionContainer>{
+      transitions, 0};
 }
 } // namespace minimal
 
@@ -104,10 +105,10 @@ static void benchMinimal(benchmark::State &s) {
   using util::benchTupleBased;                                                 \
   using util::benchMinimal;                                                    \
   BENCHMARK_TEMPLATE(benchTupleBased, NumTransitions)                          \
-      ->Arg(10000)                                                             \
+      ->Arg(100000)                                                            \
       ->Unit(benchmark::kMicrosecond);                                         \
   BENCHMARK_TEMPLATE(benchMinimal, NumTransitions)                             \
-      ->Arg(10000)                                                             \
+      ->Arg(100000)                                                            \
       ->Unit(benchmark::kMicrosecond);                                         \
   }
 
