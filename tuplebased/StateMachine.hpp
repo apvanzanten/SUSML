@@ -16,6 +16,7 @@
 #define TUPLEBASED_STATEMACHINE_HPP
 
 #include <algorithm>
+#include <bits/c++config.h>
 #include <initializer_list>
 #include <iostream>
 #include <tuple>
@@ -189,11 +190,14 @@ public:
   constexpr void trigger(const Event &event) {
     constexpr std::size_t numTransitions =
         std::tuple_size<TransitionTuple>::value;
+    // std::cout << "trigger(" << static_cast<std::size_t>(event) << ")"
+    //           << std::endl;
     triggerImpl(event, std::make_index_sequence<numTransitions>());
   }
 
   constexpr const TransitionTuple &transitions() const { return mTransitions; }
   constexpr const State &currentState() const { return mCurrentState; }
+  constexpr void setState(State newState) { mCurrentState = newState; }
 
 private:
   TransitionTuple mTransitions;
@@ -202,6 +206,13 @@ private:
   template <typename Transition>
   constexpr bool isTakeableTransition(const Transition &transition,
                                       const Event &event) {
+    // std::cout << "isTakeableTransition( "
+    //           << static_cast<std::size_t>(mCurrentState)
+    //           << " ?= " << static_cast<std::size_t>(transition.source) << " && "
+    //           << std::boolalpha
+    //           << transition.checkGuards() << "?"
+    //           << " : " << static_cast<std::size_t>(transition.target) 
+    //           << " )" << std::endl;
     return mCurrentState == transition.source && event == transition.event &&
            transition.checkGuards();
   }
@@ -209,18 +220,25 @@ private:
   template <typename Transition>
   constexpr bool takeTransitionIfAble(Transition &transition,
                                       const Event &event) {
+
+    // std::cout << "takeTransitionIfAble(" << std::endl;
     const bool isTakeable = isTakeableTransition(transition, event);
     if (isTakeable) {
       transition.executeActions();
       mCurrentState = transition.target;
+      // std::cout << "->" << static_cast<std::size_t>(transition.target) << ")"
+      //           << std::endl;
       return true;
     }
+    // std::cout << ")" << std::endl;
     return false;
   }
 
   template <std::size_t... Indices>
   constexpr bool triggerImpl(const Event &event,
                              const std::index_sequence<Indices...> &) {
+    // std::cout << "triggerImpl(" << static_cast<std::size_t>(event) << ", "
+    //           << (... << Indices) << ")" << std::endl;
     return (... ||
             takeTransitionIfAble(std::get<Indices>(mTransitions), event));
   }

@@ -6,8 +6,7 @@
 #include "minimal/factory.hpp"
 #include "tuplebased/StateMachine.hpp"
 
-namespace minimalOptimized {
-
+namespace eventBased {
 enum class State {
   idle,
   clockwise1,
@@ -19,6 +18,8 @@ enum class State {
 };
 
 enum class Event { updateA, updateB };
+
+namespace minimal {
 
 auto makeStateMachine(int &delta) {
   using namespace susml::minimal::factory;
@@ -102,7 +103,7 @@ auto makeStateMachine(int &delta) {
       transitions, State::idle};
 }
 
-static void benchMinimalOptimized(benchmark::State &s) {
+static void benchMEventBased(benchmark::State &s) {
   int delta = 0;
   auto m = makeStateMachine(delta);
 
@@ -130,9 +131,10 @@ static void benchMinimalOptimized(benchmark::State &s) {
   s.counters["d"] = delta;
 }
 
-} // namespace minimalOptimized
+} // namespace minimal
+} // namespace eventBased
 
-namespace minimalWithGuards {
+namespace guardBased {
 enum class State {
   idle,
   clockwise1,
@@ -140,8 +142,7 @@ enum class State {
   clockwise3,
   counterclockwise1,
   counterclockwise2,
-  counterclockwise3,
-  error
+  counterclockwise3
 };
 
 enum class Event { update };
@@ -150,6 +151,8 @@ struct Update {
   bool newA = false;
   bool newB = false;
 };
+
+namespace minimal {
 
 auto makeStateMachine(int &delta, const bool &a, const bool &b) {
   using namespace susml::minimal::factory;
@@ -244,50 +247,6 @@ auto makeStateMachine(int &delta, const bool &a, const bool &b) {
                                  .On(Event::update)
                                  .If(And(false, false))
                                  .Do(Fn([&] { delta--; }))
-                                 .make(),
-
-                             // error transitions
-                             From(State::clockwise1) // false true
-                                 .To(State::error)
-                                 .On(Event::update)
-                                 .If(And(true, false))
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise2) // true true
-                                 .To(State::idle)
-                                 .On(Event::update)
-                                 .If(And(false, false))
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise3) // true false
-                                 .To(State::error)
-                                 .On(Event::update)
-                                 .If(And(false, true))
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise1) // true false
-                                 .To(State::error)
-                                 .On(Event::update)
-                                 .If(And(false, true))
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise2) // true true
-                                 .To(State::idle)
-                                 .On(Event::update)
-                                 .If(And(false, false))
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise3) // false true
-                                 .To(State::error)
-                                 .On(Event::update)
-                                 .If(And(true, false))
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::error) // false true
-                                 .To(State::idle)
-                                 .On(Event::update)
-                                 .If(And(false, false))
-                                 .Do(NoAction)
                                  .make()};
 
   return StateMachine<decltype(transitions)::value_type, decltype(transitions)>{
@@ -365,29 +324,13 @@ void testMachine(susml::minimal::StateMachine<Args...> &m, int &delta, bool &a,
           Update{false, false} // idle
   );
 
-  if (!(m.currentState == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at error clockwise");
-  }
-
-  // error counterclockwise
-  trigger(Update{true, false}, // ccw1
-          Update{true, true},  // ccw2
-          Update{false, true}, // ccw3
-          Update{true, false}, // error
-          Update{false, false} // idle
-  );
-
-  if (!(m.currentState == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at error counterclockwise");
-  }
-
   a = aStart;
   b = bStart;
   delta = deltaStart;
   m.currentState = currentStateStart;
 }
 
-static void benchMinimalWithGuards(benchmark::State &s) {
+static void benchMGuardBased(benchmark::State &s) {
   int delta = 0;
   bool a = false;
   bool b = false;
@@ -396,7 +339,7 @@ static void benchMinimalWithGuards(benchmark::State &s) {
   testMachine(m, delta, a, b);
 
   static std::mt19937 mt{std::random_device{}()};
-  std::uniform_int_distribution<short> dist(1, 100);
+  std::uniform_int_distribution<short> dist(0, 1);
 
   auto getUpdates = [&] {
     std::vector<Update> updates(s.range(0));
@@ -405,16 +348,12 @@ static void benchMinimalWithGuards(benchmark::State &s) {
     updates[0].newA = false;
 
     for (std::size_t i = 1; i < updates.size(); i++) {
-      updates[i] = updates[i-1];
+      updates[i] = updates[i - 1];
 
       const auto r = dist(mt);
-      if (r <= 49) {
+      if (r == 0) {
         updates[i].newA = !updates[i - 1].newA;
-      } else if (r <= 98) {
-        updates[i].newB = !updates[i - 1].newB;
       } else {
-        // error
-        updates[i].newA = !updates[i - 1].newA;
         updates[i].newB = !updates[i - 1].newB;
       }
     }
@@ -438,17 +377,196 @@ static void benchMinimalWithGuards(benchmark::State &s) {
   s.counters["d"] = delta;
 }
 
-} // namespace minimalWithGuards
+} // namespace minimal
 
-using minimalWithGuards::benchMinimalWithGuards;
-using minimalOptimized::benchMinimalOptimized;
+namespace tuplebased {
+using susml::tuplebased::Transition;
 
-BENCHMARK(benchMinimalWithGuards)
+auto makeStateMachine(int &delta, bool &a, bool &b) {
+  auto And = [&](bool desiredA, bool desiredB) {
+    return std::make_tuple([&a, &b, desiredA, desiredB] { return a == desiredA && b == desiredB; });
+  };
+  auto NoAction =
+      std::make_tuple([&] {});
+
+  auto transitions = std::make_tuple(
+      Transition(State::idle, // false false
+                 State::clockwise1, Event::update, And(false, true), NoAction),
+      Transition(State::clockwise1, // false true
+                 State::idle, Event::update, And(false, false), NoAction),
+      Transition(State::clockwise1, // false true
+                 State::clockwise2, Event::update, And(true, true), NoAction),
+      Transition(State::clockwise2, // true true
+                 State::clockwise1, Event::update, And(false, true), NoAction),
+      Transition(State::clockwise2, // true true
+                 State::clockwise3, Event::update, And(true, false), NoAction),
+      Transition(State::clockwise3, // true false
+                 State::clockwise2, Event::update, And(true, true), NoAction),
+      Transition(State::clockwise3, // true false
+                 State::idle, Event::update, And(false, false),
+                 std::make_tuple([&] { delta++; })),
+      Transition(State::idle, // false false
+                 State::counterclockwise1, Event::update, And(true, false),
+                 NoAction),
+      Transition(State::counterclockwise1, // true false
+                 State::idle, Event::update, And(false, false), NoAction),
+      Transition(State::counterclockwise1, // true false
+                 State::counterclockwise2, Event::update, And(true, true),
+                 NoAction),
+      Transition(State::counterclockwise2, // true true
+                 State::counterclockwise1, Event::update, And(true, false),
+                 NoAction),
+      Transition(State::counterclockwise2, // true true
+                 State::counterclockwise3, Event::update, And(false, true),
+                 NoAction),
+      Transition(State::counterclockwise3, // false true
+                 State::counterclockwise2, Event::update, And(true, true),
+                 NoAction),
+      Transition(State::counterclockwise3, // false true
+                 State::idle, Event::update, And(false, false),
+                 std::make_tuple([&] { delta--; })));
+
+  return susml::tuplebased::StateMachine<State, Event, decltype(transitions)>(
+      transitions, State::idle);
+}
+
+template <typename... Args>
+void testMachine(susml::tuplebased::StateMachine<Args...> &m, int &delta,
+                 bool &a, bool &b) {
+  const bool aStart = a;
+  const bool bStart = b;
+  const int deltaStart = delta;
+  const State currentStateStart = m.currentState();
+
+  a = false;
+  b = false;
+  delta = 0;
+  m.setState(State::idle);
+
+  auto makeUpdate = [&](Update update) {
+    a = update.newA;
+    b = update.newB;
+    m.trigger(Event::update);
+  };
+
+  auto trigger = [&](auto... updates) { (..., makeUpdate(updates)); };
+
+  // full clockwise
+  trigger(Update{false, true}, // cw1
+          Update{true, true},  // cw2
+          Update{true, false}, // cw3
+          Update{false, false} // idle
+  );
+
+  if (!(m.currentState() == State::idle && delta == 1)) {
+    throw std::runtime_error("machine failed at full clockwise");
+  }
+
+  // full counterclockwise
+  trigger(Update{true, false}, Update{true, true}, Update{false, true},
+          Update{false, false});
+
+  if (!(m.currentState() == State::idle && delta == 0)) {
+    throw std::runtime_error("machine failed at full counterclockwise");
+  }
+
+  // halfway clockwise
+  trigger(Update{false, true}, // cw1
+          Update{true, true},  // cw2
+          Update{true, false}, // cw3
+          Update{true, true},  // cw2
+          Update{false, true}, // cw1
+          Update{false, false} // idle
+  );
+
+  if (!(m.currentState() == State::idle && delta == 0)) {
+    throw std::runtime_error("machine failed at halfway clockwise");
+  }
+
+  // halfway counterclockwise
+  trigger(Update{true, false}, // ccw1
+          Update{true, true},  // ccw2
+          Update{false, true}, // ccw3
+          Update{true, true},  // ccw2
+          Update{true, false}, // ccw1
+          Update{false, false} // idle
+  );
+
+  if (!(m.currentState() == State::idle && delta == 0)) {
+    throw std::runtime_error("machine failed at halfway counterclockwise");
+  }
+
+  a = aStart;
+  b = bStart;
+  delta = deltaStart;
+  m.setState(currentStateStart);
+}
+
+static void benchTBGuardBased(benchmark::State &s) {
+  int delta = 0;
+  bool a = false;
+  bool b = false;
+  auto m = makeStateMachine(delta, a, b);
+
+  testMachine(m, delta, a, b);
+
+  static std::mt19937 mt{std::random_device{}()};
+  std::uniform_int_distribution<short> dist(0, 1);
+
+  auto getUpdates = [&] {
+    std::vector<Update> updates(s.range(0));
+
+    updates[0].newA = false;
+    updates[0].newA = false;
+
+    for (std::size_t i = 1; i < updates.size(); i++) {
+      updates[i] = updates[i - 1];
+
+      const auto r = dist(mt);
+      if (r == 0) {
+        updates[i].newA = !updates[i - 1].newA;
+      } else {
+        updates[i].newB = !updates[i - 1].newB;
+      }
+    }
+
+    return updates;
+  };
+
+  for (auto _ : s) {
+    s.PauseTiming();
+    auto updates = getUpdates();
+    s.ResumeTiming();
+
+    for (const Update &u : updates) {
+      a = u.newA;
+      b = u.newB;
+
+      m.trigger(Event::update);
+    }
+  }
+
+  s.counters["d"] = delta;
+}
+
+} // namespace tuplebased
+} // namespace guardBased
+
+using eventBased::minimal::benchMEventBased;
+using guardBased::minimal::benchMGuardBased;
+using guardBased::tuplebased::benchTBGuardBased;
+
+BENCHMARK(benchTBGuardBased)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 20)
     ->Unit(benchmark::kMicrosecond);
 
-BENCHMARK(benchMinimalOptimized)
+BENCHMARK(benchMGuardBased)
+    ->RangeMultiplier(2)
+    ->Range(1 << 10, 1 << 20)
+    ->Unit(benchmark::kMicrosecond);
+
+BENCHMARK(benchMEventBased)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 20)
     ->Unit(benchmark::kMicrosecond);
