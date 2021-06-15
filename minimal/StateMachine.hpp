@@ -21,6 +21,8 @@ namespace susml::minimal {
 constexpr bool unitGuard() { return true; }
 constexpr void unitAction() { return; }
 
+// TODO something with NoneType instead of weird unitGuard/Action
+
 // Transition is defined separately outside of Statemachine, such that the user
 // can specify what TransitionContainer to use in StateMachine.
 template <typename StateT, typename EventT,

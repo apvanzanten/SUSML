@@ -24,7 +24,7 @@ set(RESTRICTIONS -fno-rtti; -fno-exceptions;)
 set(DEBUG_FLAGS -Og; -g;)
 set(TEST_FLAGS ${WARNINGS} ${SANITIZERS} ${RESTRICTIONS} ${DEBUG_FLAGS})
 set(RELEASE_FLAGS -O3;)
-set(BENCHMARK_FLAGS ${WARNINGS} ${RESTRICTIONS} ${RELEASE_FLAGS})
+set(BENCHMARK_FLAGS ${WARNINGS} ${RELEASE_FLAGS})
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -68,3 +68,9 @@ target_include_directories(benchCircle64 PUBLIC ${PROJECT_SOURCE_DIR})
 target_compile_options(benchCircle64 PUBLIC ${BENCHMARK_FLAGS})
 target_link_options(benchCircle64 PUBLIC ${BENCHMARK_FLAGS})
 target_link_libraries(benchCircle64 benchmark)
+
+add_executable(benchEncoder ${TEST_DIR}/encoder.bench.cpp)
+target_include_directories(benchEncoder PUBLIC ${PROJECT_SOURCE_DIR})
+target_compile_options(benchEncoder PUBLIC ${BENCHMARK_FLAGS})
+target_link_options(benchEncoder PUBLIC ${BENCHMARK_FLAGS})
+target_link_libraries(benchEncoder benchmark)
