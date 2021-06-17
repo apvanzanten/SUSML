@@ -103,7 +103,7 @@ auto makeStateMachine(int &delta) {
       transitions, State::idle};
 }
 
-static void benchMEventBased(benchmark::State &s) {
+static void encoderMEventBased(benchmark::State &s) {
   int delta = 0;
   auto m = makeStateMachine(delta);
 
@@ -132,6 +132,142 @@ static void benchMEventBased(benchmark::State &s) {
 }
 
 } // namespace minimal
+
+namespace tuplebased {
+using susml::tuplebased::Transition;
+
+auto makeStateMachine(int &delta) {
+  auto NoGuard = [] { return true; };
+  auto NoAction = [] {};
+
+  auto transitions = std::make_tuple(
+      Transition(State::idle, State::clockwise1, Event::updateB, NoGuard,
+                 NoAction),
+      Transition(State::clockwise1, State::idle, Event::updateB, NoGuard,
+                 NoAction),
+      Transition(State::clockwise1, State::clockwise2, Event::updateA, NoGuard,
+                 NoAction),
+      Transition(State::clockwise2, State::clockwise1, Event::updateA, NoGuard,
+                 NoAction),
+      Transition(State::clockwise2, State::clockwise3, Event::updateB, NoGuard,
+                 NoAction),
+      Transition(State::clockwise3, State::clockwise2, Event::updateB, NoGuard,
+                 NoAction),
+      Transition(State::clockwise3, State::idle, Event::updateA, NoGuard,
+                 [&] { delta++; }),
+      Transition(State::idle, State::counterclockwise1, Event::updateA, NoGuard,
+                 NoAction),
+      Transition(State::counterclockwise1, State::idle, Event::updateA, NoGuard,
+                 NoAction),
+      Transition(State::counterclockwise1, State::counterclockwise2,
+                 Event::updateB, NoGuard, NoAction),
+      Transition(State::counterclockwise2, State::counterclockwise1,
+                 Event::updateB, NoGuard, NoAction),
+      Transition(State::counterclockwise2, State::counterclockwise3,
+                 Event::updateA, NoGuard, NoAction),
+      Transition(State::counterclockwise3, State::counterclockwise2,
+                 Event::updateA, NoGuard, NoAction),
+      Transition(State::counterclockwise3, State::idle, Event::updateB, NoGuard,
+                 [&] { delta--; }));
+
+  return susml::tuplebased::StateMachine<State, Event, decltype(transitions)>(
+      transitions, State::idle);
+}
+
+template <typename... Args>
+void testMachine(susml::tuplebased::StateMachine<Args...> &m, int &delta) {
+  const int deltaStart = delta;
+  const State currentStateStart = m.currentState();
+
+  delta = 0;
+  m.setState(State::idle);
+
+  auto trigger = [&](auto... events) { (..., m.trigger(events)); };
+
+  // full clockwise
+  trigger(Event::updateB, // cw1
+          Event::updateA, // cw2
+          Event::updateB, // cw3
+          Event::updateA  // idle
+  );
+
+  if (!(m.currentState() == State::idle && delta == 1)) {
+    throw std::runtime_error("machine failed at full clockwise");
+  }
+  delta = 0;
+
+  // full counterclockwise
+  trigger(Event::updateA, // ccw1
+          Event::updateB, // ccw2
+          Event::updateA, // ccw3
+          Event::updateB  // idle
+  );
+
+  if (!(m.currentState() == State::idle && delta == -1)) {
+    throw std::runtime_error("machine failed at full counterclockwise");
+  }
+  delta = 0;
+
+  // halfway clockwise
+  trigger(Event::updateB, // cw1
+          Event::updateA, // cw2
+          Event::updateB, // cw3
+          Event::updateB, // cw2
+          Event::updateA, // cw1
+          Event::updateB  // idle
+  );
+
+  if (!(m.currentState() == State::idle && delta == 0)) {
+    throw std::runtime_error("machine failed at halfway clockwise");
+  }
+
+  // halfway clockwise
+  trigger(Event::updateA, // ccw1
+          Event::updateB, // ccw2
+          Event::updateA, // ccw3
+          Event::updateA, // ccw2
+          Event::updateB, // ccw1
+          Event::updateA  // idle
+  );
+
+  if (!(m.currentState() == State::idle && delta == 0)) {
+    throw std::runtime_error("machine failed at halfway counterclockwise");
+  }
+
+  delta = deltaStart;
+  m.setState(currentStateStart);
+}
+
+static void encoderTBEventBased(benchmark::State &s) {
+  int delta = 0;
+  auto m = makeStateMachine(delta);
+
+  testMachine(m, delta);
+
+  static std::mt19937 mt{std::random_device{}()};
+  std::uniform_int_distribution<short> dist(0, 1);
+
+  auto getEvents = [&] {
+    std::vector<Event> events(s.range(0));
+    for (auto &e : events) {
+      e = (dist(mt) == 0) ? Event::updateA : Event::updateB;
+    }
+    return events;
+  };
+
+  for (auto _ : s) {
+    s.PauseTiming();
+    auto events = getEvents();
+    s.ResumeTiming();
+
+    for (const Event &e : events) {
+      m.trigger(e);
+    }
+  }
+
+  s.counters["d"] = delta;
+}
+} // namespace tuplebased
 } // namespace eventBased
 
 namespace guardBased {
@@ -330,7 +466,7 @@ void testMachine(susml::minimal::StateMachine<Args...> &m, int &delta, bool &a,
   m.currentState = currentStateStart;
 }
 
-static void benchMGuardBased(benchmark::State &s) {
+static void encoderMGuardBased(benchmark::State &s) {
   int delta = 0;
   bool a = false;
   bool b = false;
@@ -502,7 +638,7 @@ void testMachine(susml::tuplebased::StateMachine<Args...> &m, int &delta,
   m.setState(currentStateStart);
 }
 
-static void benchTBGuardBased(benchmark::State &s) {
+static void encoderTBGuardBased(benchmark::State &s) {
   int delta = 0;
   bool a = false;
   bool b = false;
@@ -552,21 +688,27 @@ static void benchTBGuardBased(benchmark::State &s) {
 } // namespace tuplebased
 } // namespace guardBased
 
-using eventBased::minimal::benchMEventBased;
-using guardBased::minimal::benchMGuardBased;
-using guardBased::tuplebased::benchTBGuardBased;
+using eventBased::minimal::encoderMEventBased;
+using eventBased::tuplebased::encoderTBEventBased;
+using guardBased::minimal::encoderMGuardBased;
+using guardBased::tuplebased::encoderTBGuardBased;
 
-BENCHMARK(benchTBGuardBased)
+BENCHMARK(encoderTBGuardBased)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 20)
     ->Unit(benchmark::kMicrosecond);
 
-BENCHMARK(benchMGuardBased)
+BENCHMARK(encoderMGuardBased)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 20)
     ->Unit(benchmark::kMicrosecond);
 
-BENCHMARK(benchMEventBased)
+BENCHMARK(encoderTBEventBased)
+    ->RangeMultiplier(2)
+    ->Range(1 << 10, 1 << 20)
+    ->Unit(benchmark::kMicrosecond);
+
+BENCHMARK(encoderMEventBased)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 20)
     ->Unit(benchmark::kMicrosecond);
