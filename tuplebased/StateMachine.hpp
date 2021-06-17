@@ -16,18 +16,10 @@
 #define TUPLEBASED_STATEMACHINE_HPP
 
 #include <algorithm>
-#include <bits/c++config.h>
-#include <initializer_list>
-#include <iostream>
 #include <tuple>
 #include <type_traits>
-#include <utility>
-#include <variant>
 
 namespace susml::tuplebased {
-
-constexpr bool unitGuard() { return true; }
-constexpr void unitAction() { return; }
 
 template <typename StateT, typename EventT, typename GuardT, typename ActionT>
 struct Transition {
