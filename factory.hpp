@@ -13,12 +13,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with SUSML. If not, see <https://www.gnu.org/licenses/>.
 
-#include "StateMachine.hpp"
-#include <initializer_list>
+#include "Transition.hpp"
+#include <functional>
 #include <type_traits>
-#include <vector>
 
-namespace susml::minimal::factory {
+namespace susml::factory {
 struct NoneType {
   constexpr bool operator==(const NoneType &) const { return true; }
   constexpr bool operator!=(const NoneType &) const { return false; }
@@ -32,14 +31,20 @@ struct PartialTransition {
   using Guard = GuardT;
   using Action = ActionT;
 
-  static constexpr bool hasGuard() { return !(std::is_same<Guard, NoneType>::value || std::is_same<Guard, const NoneType>::value);}
-  static constexpr bool hasAction() { return !(std::is_same<Action, NoneType>::value || std::is_same<Action, const NoneType>::value);}
+  static constexpr bool hasGuard() {
+    return !(std::is_same<Guard, NoneType>::value ||
+             std::is_same<Guard, const NoneType>::value);
+  }
+  static constexpr bool hasAction() {
+    return !(std::is_same<Action, NoneType>::value ||
+             std::is_same<Action, const NoneType>::value);
+  }
 
-  State source{};
-  State target{};
-  Event event{};
-  Guard guard{};
-  Action action{};
+  State source;
+  State target;
+  Event event;
+  Guard guard;
+  Action action;
 
   template <typename NewState> constexpr auto From(NewState newSource) const {
     if constexpr (std::is_same<State, NewState>::value) {
@@ -67,13 +72,13 @@ struct PartialTransition {
         source, target, newEvent, guard, action};
   }
 
-  template <typename NewGuard = bool (*)()>
+  template <typename NewGuard = std::function<bool()>>
   constexpr PartialTransition<State, Event, NewGuard, Action>
   If(NewGuard newGuard) const {
     return {source, target, event, newGuard, action};
   }
 
-  template <typename NewAction = void (*)()>
+  template <typename NewAction = std::function<void()>>
   constexpr PartialTransition<State, Event, Guard, NewAction>
   Do(NewAction newAction) const {
     return {source, target, event, guard, newAction};
@@ -84,9 +89,9 @@ struct PartialTransition {
 
   constexpr auto make() const {
     if constexpr (!hasGuard()) {
-      return this->If({unitGuard}).make();
+      return this->If([] { return true; }).make();
     } else if constexpr (!hasAction()) {
-      return this->Do({unitAction}).make();
+      return this->Do([] {}).make();
     } else if constexpr (hasGuard() && hasAction()) {
       return Transition<State, Event, Guard, Action>{source, target, event,
                                                      guard, action};
@@ -113,22 +118,22 @@ struct PartialTransition {
 template <typename State>
 constexpr PartialTransition<State> From(State source) {
   // start as a self-loop, as we need to fill in something for the target state
-  return {source, source};
+  return {source, source, {},{},{}};
 }
 
 template <typename State> constexpr PartialTransition<State> To(State target) {
   // start as a self-loop, as we need to fill in something for the source state
-  return {target, target};
+  return {target, target, {},{},{}};
 }
 
 template <typename Event>
 constexpr PartialTransition<NoneType, Event> On(Event newEvent) {
-  return {{}, {}, newEvent};
+  return {{}, {}, newEvent, {}, {}};
 }
 
 template <typename Guard>
 constexpr PartialTransition<NoneType, NoneType, Guard> If(Guard guard) {
-  return {{}, {}, {}, guard};
+  return {{}, {}, {}, guard, {}};
 }
 
 template <typename Action>
@@ -137,6 +142,6 @@ Do(Action action) {
   return {{}, {}, {}, {}, action};
 }
 
-} // namespace susml::minimal::factory
+} // namespace susml::factory
 
 #endif

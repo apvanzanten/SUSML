@@ -14,6 +14,7 @@
 #ifndef SUSML_HPP
 #define SUSML_HPP
 
+#include "Transition.hpp"
 #include "minimal/StateMachine.hpp"
 
 namespace susml {

@@ -13,7 +13,10 @@
 
 #include "gtest/gtest.h"
 
+#include "Transition.hpp"
+#include "factory.hpp"
 #include "minimal/StateMachine.hpp"
+
 #include <array>
 #include <functional>
 #include <iostream>
@@ -40,18 +43,16 @@ enum class Event { turnOn, turnOff };
 using Guard = std::function<bool()>;
 using Action = std::function<void()>;
 
-using susml::minimal::unitGuard;
-
-using Transition = susml::minimal::Transition<State, Event, Guard, Action>;
+using Transition = susml::Transition<State, Event, Guard, Action>;
 using StateMachine =
     susml::minimal::StateMachine<Transition, std::vector<Transition>>;
 
 auto createBasicMachine() {
   return StateMachine{
       {{
-           State::off,        // transition from state off
-           State::on,         // transition to state on
-           Event::turnOn,     // transition in response to turnOn event
+           State::off,         // transition from state off
+           State::on,          // transition to state on
+           Event::turnOn,      // transition in response to turnOn event
            Guards::countGuard, // transition only if countGuard returns true
            [&] {
              Actions::countAction();
@@ -59,19 +60,19 @@ auto createBasicMachine() {
            } // on transition, call countAction twice
        },
        {
-           State::on,          // transition from state on
-           State::off,         // transition to state off
-           Event::turnOff,     // transition in response to turnOff
-                               // event
+           State::on,           // transition from state on
+           State::off,          // transition to state off
+           Event::turnOff,      // transition in response to turnOff
+                                // event
            Guards::countGuard,  // transition only if countGuard returns true
            Actions::countAction // on transition, call countAction
        },
        {
-           State::on,             // transition from state on
-           State::on,             // transition to state on
-           Event::turnOn,         // transition in response to turnOn event
-           unitGuard, // transition always
-           Actions::countAction,   // on transition, call countAction
+           State::on,            // transition from state on
+           State::on,            // transition to state on
+           Event::turnOn,        // transition in response to turnOn event
+           [] { return true; },  // transition always
+           Actions::countAction, // on transition, call countAction
        }},
       INITIAL_STATE};
 }
@@ -106,15 +107,19 @@ TEST(BasicTest, GoodWeather) {
 }
 
 TEST(CompositeTests, controllerAndSubsystem) {
+  using namespace susml::factory;
+
   struct System {
     using Guard = std::function<bool()>;
     using Action = std::function<void()>;
 
+    const std::function<bool()> NoGuard = [] { return true; };
+    const std::function<void()> NoAction = [] {};
+
     enum class ControllerState { on, off };
     enum class ControllerEvent { turnOn, turnOff };
     using ControllerTransition =
-        susml::minimal::Transition<ControllerState, ControllerEvent, Guard,
-                                   Action>;
+        susml::Transition<ControllerState, ControllerEvent, Guard, Action>;
     using Controller =
         susml::minimal::StateMachine<ControllerTransition,
                                      std::vector<ControllerTransition>>;
@@ -122,29 +127,53 @@ TEST(CompositeTests, controllerAndSubsystem) {
     enum class SubsystemState { off, idle, running };
     enum class SubsystemEvent { turnOn, run, finish, turnOff };
     using SubsystemTransition =
-        susml::minimal::Transition<SubsystemState, SubsystemEvent, Guard,
-                                   Action>;
+        susml::Transition<SubsystemState, SubsystemEvent, Guard, Action>;
     using Subsystem =
         susml::minimal::StateMachine<SubsystemTransition,
                                      std::vector<SubsystemTransition>>;
 
     // forward declaration to allow references to eachother
-    Subsystem subsys{
-        {
-            {SubsystemState::off, SubsystemState::idle, SubsystemEvent::turnOn},
-            {SubsystemState::idle, SubsystemState::running, SubsystemEvent::run},
-            {SubsystemState::running, SubsystemState::idle, SubsystemEvent::finish},
-            {SubsystemState::idle, SubsystemState::off, SubsystemEvent::turnOff},
-        },
-        SubsystemState::off};
+    Subsystem subsys{{From(SubsystemState::off)
+                          .To(SubsystemState::idle)
+                          .On(SubsystemEvent::turnOn)
+                          .If(NoGuard)
+                          .Do(NoAction)
+                          .make(),
+                      From(SubsystemState::idle)
+                          .To(SubsystemState::running)
+                          .On(SubsystemEvent::run)
+                          .If(NoGuard)
+                          .Do(NoAction)
+                          .make(),
+                      From(SubsystemState::running)
+                          .To(SubsystemState::idle)
+                          .On(SubsystemEvent::finish)
+                          .If(NoGuard)
+                          .Do(NoAction)
+                          .make(),
+                      From(SubsystemState::idle)
+                          .To(SubsystemState::off)
+                          .On(SubsystemEvent::turnOff)
+                          .If(NoGuard)
+                          .Do(NoAction)
+                          .make()},
+                     SubsystemState::off};
 
     Controller ctrl{
-        {{ControllerState::off, ControllerState::on, ControllerEvent::turnOn,
-          unitGuard,
-          [&] { subsys.trigger(SubsystemEvent::turnOn); }},
-         {ControllerState::on, ControllerState::off, ControllerEvent::turnOff,
-          [&] { return subsys.currentState == SubsystemState::idle; },
-          [&] { subsys.trigger(SubsystemEvent::turnOff); }}},
+        {From(ControllerState::off)
+             .To(ControllerState::on)
+             .On(ControllerEvent::turnOn)
+             .If(NoGuard)
+             .Do(std::function([&] { subsys.trigger(SubsystemEvent::turnOn); }))
+             .make(),
+         From(ControllerState::on)
+             .To(ControllerState::off)
+             .On(ControllerEvent::turnOff)
+             .If(std::function(
+                 [&] { return subsys.currentState == SubsystemState::idle; }))
+             .Do(std::function(
+                 [&] { subsys.trigger(SubsystemEvent::turnOff); }))
+             .make()},
         ControllerState::off};
   } system;
 

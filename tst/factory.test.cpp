@@ -14,12 +14,11 @@
 
 #include "gtest/gtest.h"
 
-#include "minimal/StateMachine.hpp"
-#include "minimal/factory.hpp"
+#include "factory.hpp"
 
 #include <algorithm>
 
-using namespace susml::minimal::factory;
+using namespace susml::factory;
 
 enum class State { on, off };
 std::ostream &operator<<(std::ostream &stream, State state) {

@@ -20,7 +20,7 @@ bool trueGuard() { return true; }
 void noneAction() {}
 
 TEST(ValidationTests, transitions) {
-  using susml::tuplebased::Transition;
+  using susml::Transition;
   using susml::tuplebased::validate::isTransitionType;
 
   enum class State { a, b, c };
@@ -39,7 +39,7 @@ TEST(ValidationTests, transitions) {
 }
 
 TEST(ValidationTests, transitionTuples) {
-  using susml::tuplebased::Transition;
+  using susml::Transition;
   using susml::tuplebased::validate::isValidTransitionTupleType;
 
   EXPECT_TRUE((isValidTransitionTupleType<
@@ -75,7 +75,7 @@ TEST(ValidationTests, transitionTuples) {
 }
 
 TEST(TransitionTests, basic) {
-  using susml::tuplebased::Transition;
+  using susml::Transition;
 
   enum class State { off, on };
   enum class Event { turnOn, turnOff };
@@ -91,7 +91,7 @@ TEST(TransitionTests, basic) {
 }
 
 TEST(TransitionTests, basicWithGuard) {
-  using susml::tuplebased::Transition;
+  using susml::Transition;
 
   bool val = false;
   auto getVal = [&val] { return val; };
@@ -107,7 +107,7 @@ TEST(TransitionTests, basicWithGuard) {
 }
 
 TEST(TransitionTests, basicWithAction) {
-  using susml::tuplebased::Transition;
+  using susml::Transition;
 
   bool val = false;
   auto unitGuard = [] { return true; };
@@ -128,7 +128,7 @@ TEST(StateMachineTests, basicTransition) {
   enum class State { on, off };
   enum class Event { turnOn, turnOff };
 
-  using Transition = susml::tuplebased::Transition<State, Event, bool(*)(), void(*)()>;
+  using Transition = susml::Transition<State, Event, bool(*)(), void(*)()>;
   using StateMachine =
       susml::tuplebased::StateMachine<State, Event,
                                       std::tuple<Transition, Transition>>;
@@ -164,10 +164,10 @@ TEST(StateMachineTests, transitionWithGaurdAndActions) {
 
   std::vector<std::string> reports;
 
-  tuplebased::Transition offToOn{
+  Transition offToOn{
       State::off, State::on, Event::turnOn, [&] { return readyForOn; },
       [&] { reports.push_back("turnOn"); }};
-  tuplebased::Transition onToOff(
+  Transition onToOff(
       State::on, State::off, Event::turnOff, [&] { return readyForOff; },
       [&] { reports.push_back("turnOff"); });
 
@@ -209,7 +209,7 @@ TEST(StateMachineTests, transitionWithGaurdAndActions) {
 
 namespace encoder {
 using susml::tuplebased::StateMachine;
-using susml::tuplebased::Transition;
+using susml::Transition;
 
 enum class State {
   idle,

@@ -19,35 +19,9 @@
 #include <tuple>
 #include <type_traits>
 
+#include "Transition.hpp"
+
 namespace susml::tuplebased {
-
-template <typename StateT, typename EventT, typename GuardT, typename ActionT>
-struct Transition {
-  // TODO unify with minimal
-  using State = StateT;
-  using Event = EventT;
-  using Guard = GuardT;
-  using Action = ActionT;
-
-  static_assert(std::is_invocable<Guard>::value, "Guard should be invocable");
-  static_assert(std::is_invocable<Action>::value, "Action should be invocable");
-  static_assert(
-      std::is_same<typename std::invoke_result<Guard>::type, bool>::value,
-      "Guard should return bool.");
-  static_assert(
-      std::is_same<typename std::invoke_result<Action>::type, void>::value,
-      "Action should return void.");
-
-  State source;
-  State target;
-  Event event;
-  Guard guard;
-  Action action;
-
-  constexpr Transition(const State &s, const State &t, const Event &e,
-                       const Guard &g, const Action &a)
-      : source(s), target(t), event(e), guard(g), action(a) {}
-};
 
 namespace validate {
 /* Transitions type validation

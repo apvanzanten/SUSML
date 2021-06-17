@@ -14,44 +14,10 @@
 #ifndef MINIMAL_STATEMACHINE_HPP
 #define MINIMAL_STATEMACHINE_HPP
 
+#include "Transition.hpp"
 #include <type_traits>
 
 namespace susml::minimal {
-
-constexpr bool unitGuard() { return true; }
-constexpr void unitAction() { return; }
-
-// TODO something with NoneType instead of weird unitGuard/Action
-
-// Transition is defined separately outside of Statemachine, such that the user
-// can specify what TransitionContainer to use in StateMachine.
-template <typename StateT, typename EventT,
-          typename GuardT = bool (*)(), // must be invocable bool()
-          typename ActionT = void (*)() // must be invocable void()
-          >
-struct Transition {
-  using State = StateT;
-  using Event = EventT;
-  using Guard = GuardT;
-  using Action = ActionT;
-
-
-  static_assert(std::is_invocable<Guard>::value, "Guard should be invocable");
-  static_assert(std::is_invocable<Action>::value, "Action should be invocable");
-  static_assert(
-      std::is_same<typename std::invoke_result<Guard>::type, bool>::value,
-      "Guard should return bool.");
-  static_assert(
-      std::is_same<typename std::invoke_result<Action>::type, void>::value,
-      "Action should return void.");
-
-  State source;
-  State target;
-  Event event;
-  Guard guard = {unitGuard};
-  Action action = {unitAction};
-};
-
 template <typename TransitionT, typename TransitionContainerT>
 struct StateMachine {
   using Transition = TransitionT;

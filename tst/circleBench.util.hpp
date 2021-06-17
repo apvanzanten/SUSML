@@ -3,7 +3,8 @@
 
 #include <benchmark/benchmark.h>
 
-#include "minimal/factory.hpp"
+#include "factory.hpp"
+#include "minimal/StateMachine.hpp"
 #include "tuplebased/StateMachine.hpp"
 
 namespace util {
@@ -11,7 +12,7 @@ namespace util {
 enum class HasGuards { yes, no };
 
 namespace tuplebased {
-using susml::tuplebased::Transition;
+using susml::Transition;
 
 template <std::size_t Index, std::size_t TotalTransitions,
           bool WithGuard = false>
@@ -50,7 +51,7 @@ constexpr auto makeStateMachine(std::size_t &counter) {
 } // namespace tuplebased
 
 namespace minimal {
-using namespace susml::minimal::factory;
+using namespace susml::factory;
 
 template <std::size_t Index, std::size_t TotalTransitions,
           bool WithGuard = false>

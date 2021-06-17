@@ -3,7 +3,7 @@
 #include <stdexcept>
 
 #include "minimal/StateMachine.hpp"
-#include "minimal/factory.hpp"
+#include "factory.hpp"
 #include "tuplebased/StateMachine.hpp"
 
 namespace eventBased {
@@ -22,7 +22,7 @@ enum class Event { updateA, updateB };
 namespace minimal {
 
 auto makeStateMachine(int &delta) {
-  using namespace susml::minimal::factory;
+  using namespace susml::factory;
   using susml::minimal::StateMachine;
 
   auto Fn = [](auto e) { return std::function(e); };
@@ -134,7 +134,7 @@ static void encoderMEventBased(benchmark::State &s) {
 } // namespace minimal
 
 namespace tuplebased {
-using susml::tuplebased::Transition;
+using susml::Transition;
 
 auto makeStateMachine(int &delta) {
   auto NoGuard = [] { return true; };
@@ -291,7 +291,7 @@ struct Update {
 namespace minimal {
 
 auto makeStateMachine(int &delta, const bool &a, const bool &b) {
-  using namespace susml::minimal::factory;
+  using namespace susml::factory;
   using susml::minimal::StateMachine;
 
   auto Fn = [](auto e) { return std::function(e); };
@@ -516,7 +516,7 @@ static void encoderMGuardBased(benchmark::State &s) {
 } // namespace minimal
 
 namespace tuplebased {
-using susml::tuplebased::Transition;
+using susml::Transition;
 
 auto makeStateMachine(int &delta, bool &a, bool &b) {
   auto And = [&](bool desiredA, bool desiredB) {
