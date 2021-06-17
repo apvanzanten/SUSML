@@ -43,6 +43,11 @@ struct StateMachine {
 
   State currentState;
 
+  constexpr StateMachine(Sources sources, Targets targets, Events events,
+                         Guards guards, Actions actions, State initialState)
+      : sources(sources), targets(targets), events(events), guards(guards),
+        actions(actions), currentState(initialState) {}
+
   constexpr bool checkGuard(GuardVariant &gv) {
     return std::visit([&](auto &g) { return g(); }, gv);
   }
@@ -80,9 +85,10 @@ constexpr auto fromTransitions(State initialState,
   auto guards = std::array{GuardVariant{transitions.guard}...};
   auto actions = std::array{ActionVariant{transitions.action}...};
 
-  return StateMachine<State, Event, GuardVariant, ActionVariant,
-                      NumTransitions>{sources, targets, events,
-                                      guards,  actions, initialState};
+  using M =
+      StateMachine<State, Event, GuardVariant, ActionVariant, NumTransitions>;
+
+  return M(sources, targets, events, guards, actions, initialState);
 }
 
 } // namespace susml::dataoriented

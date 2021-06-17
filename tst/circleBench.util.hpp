@@ -3,6 +3,8 @@
 
 #include <benchmark/benchmark.h>
 
+#include "Transition.hpp"
+#include "dataoriented/StateMachine.hpp"
 #include "factory.hpp"
 #include "minimal/StateMachine.hpp"
 #include "tuplebased/StateMachine.hpp"
@@ -91,6 +93,24 @@ constexpr auto makeStateMachine(std::size_t &counter) {
 }
 } // namespace minimal
 
+namespace dataoriented {
+using tuplebased::makeTransition;
+
+template <bool WithGuards, std::size_t... Indices>
+constexpr auto makeStateMachineImpl(const std::index_sequence<Indices...> &,
+                                    std::size_t &counter) {
+  constexpr auto totalTransitions = sizeof...(Indices);
+  return susml::dataoriented::fromTransitions(
+      std::size_t(0), makeTransition<Indices, totalTransitions, WithGuards>(counter)...);
+}
+
+template <std::size_t NumTransitions, bool WithGuards = false>
+constexpr auto makeStateMachine(std::size_t &counter) {
+  return makeStateMachineImpl<WithGuards>(
+      std::make_index_sequence<NumTransitions>(), counter);
+}
+} // namespace dataoriented
+
 template <typename StateMachine>
 static void runTest(benchmark::State &s, StateMachine &machine,
                     size_t &counter) {
@@ -103,7 +123,7 @@ static void runTest(benchmark::State &s, StateMachine &machine,
 }
 
 template <std::size_t NumTransitions, util::HasGuards hasGuards>
-static void benchTupleBased(benchmark::State &s) {
+static void circleTupleBased(benchmark::State &s) {
   std::size_t counter = 0;
   auto m = tuplebased::makeStateMachine<NumTransitions,
                                         (hasGuards == util::HasGuards::yes)>(
@@ -112,23 +132,37 @@ static void benchTupleBased(benchmark::State &s) {
 }
 
 template <std::size_t NumTransitions, util::HasGuards hasGuards>
-static void benchMinimal(benchmark::State &s) {
+static void circleMinimal(benchmark::State &s) {
   std::size_t counter = 0;
   auto m =
       minimal::makeStateMachine<NumTransitions,
                                 (hasGuards == util::HasGuards::yes)>(counter);
   runTest(s, m, counter);
 }
+
+template <std::size_t NumTransitions, util::HasGuards hasGuards>
+static void circleDataOriented(benchmark::State &s) {
+  std::size_t counter = 0;
+  auto m = dataoriented::makeStateMachine<NumTransitions,
+                                          (hasGuards == util::HasGuards::yes)>(
+      counter);
+  runTest(s, m, counter);
+}
+
 } // namespace util
 
 #define BENCH_CIRCLE(NumTransitions, HasGuards)                                \
   namespace {                                                                  \
-  using util::benchTupleBased;                                                 \
-  using util::benchMinimal;                                                    \
-  BENCHMARK_TEMPLATE(benchTupleBased, NumTransitions, HasGuards)               \
+  using util::circleTupleBased;                                                \
+  using util::circleMinimal;                                                   \
+  using util::circleDataOriented;                                              \
+  BENCHMARK_TEMPLATE(circleTupleBased, NumTransitions, HasGuards)              \
       ->Arg(100000)                                                            \
       ->Unit(benchmark::kMicrosecond);                                         \
-  BENCHMARK_TEMPLATE(benchMinimal, NumTransitions, HasGuards)                  \
+  BENCHMARK_TEMPLATE(circleMinimal, NumTransitions, HasGuards)                 \
+      ->Arg(100000)                                                            \
+      ->Unit(benchmark::kMicrosecond);                                         \
+  BENCHMARK_TEMPLATE(circleDataOriented, NumTransitions, HasGuards)            \
       ->Arg(100000)                                                            \
       ->Unit(benchmark::kMicrosecond);                                         \
   }
