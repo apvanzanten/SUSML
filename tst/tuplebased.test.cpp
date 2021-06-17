@@ -19,76 +19,6 @@ bool trueGuard() { return true; }
 
 void noneAction() {}
 
-TEST(ValidationTests, guards) {
-  using susml::tuplebased::validate::isGuardTupleType;
-  using susml::tuplebased::validate::isGuardType;
-
-  bool b = true;
-
-  const auto validGuard = [] { return true; };
-  const auto validGuardWithCapture = [&] { return b; };
-  const auto invalidGuard = [] { return "this is not a bool!"; };
-  const auto invalidGuardWithCapture = [&] { b = false; };
-
-  EXPECT_TRUE(isGuardType<bool()>());
-  EXPECT_TRUE(isGuardType<bool (*)()>());
-  EXPECT_TRUE(isGuardType<std::function<bool()>>());
-  EXPECT_TRUE(isGuardType<decltype(validGuard)>());
-  EXPECT_TRUE(isGuardType<decltype(validGuardWithCapture)>());
-  EXPECT_TRUE(isGuardType<decltype(trueGuard)>());
-
-  EXPECT_FALSE(isGuardType<bool>());
-  EXPECT_FALSE(isGuardType<void()>());
-  EXPECT_FALSE(isGuardType<decltype(invalidGuard)>());
-  EXPECT_FALSE(isGuardType<decltype(invalidGuardWithCapture)>());
-
-  EXPECT_TRUE(isGuardTupleType<std::tuple<>>());
-  EXPECT_TRUE((isGuardTupleType<std::tuple<decltype(validGuard)>>()));
-  EXPECT_TRUE(
-      (isGuardTupleType<
-          std::tuple<bool(), bool (*)(), decltype(validGuard),
-                     decltype(validGuardWithCapture), decltype(trueGuard)>>()));
-
-  EXPECT_FALSE(isGuardTupleType<std::tuple<decltype(invalidGuard)>>());
-  EXPECT_FALSE(
-      (isGuardTupleType<std::tuple<decltype(invalidGuard),
-                                   decltype(invalidGuardWithCapture)>>()));
-}
-
-TEST(ValidationTests, actions) {
-  using susml::tuplebased::validate::isActionTupleType;
-  using susml::tuplebased::validate::isActionType;
-
-  bool b = true;
-
-  const auto validAction = [] {};
-  const auto validActionWithCapture = [&] { b = false; };
-  const auto invalidAction = [] { return false; };
-  const auto invalidActionWithCapture = [&] { return true; };
-
-  EXPECT_TRUE(isActionType<void()>());
-  EXPECT_TRUE(isActionType<void (*)()>());
-  EXPECT_TRUE(isActionType<std::function<void()>>());
-  EXPECT_TRUE(isActionType<decltype(validAction)>());
-  EXPECT_TRUE(isActionType<decltype(validActionWithCapture)>());
-
-  EXPECT_FALSE(isActionType<void>());
-  EXPECT_FALSE(isActionType<bool()>());
-  EXPECT_FALSE(isActionType<decltype(invalidAction)>());
-  EXPECT_FALSE(isActionType<decltype(invalidActionWithCapture)>());
-
-  EXPECT_TRUE((isActionTupleType<std::tuple<>>()));
-  EXPECT_TRUE((isActionTupleType<std::tuple<decltype(validAction)>>()));
-  EXPECT_TRUE(
-      (isActionTupleType<std::tuple<void(), void (*)(), decltype(validAction),
-                                    decltype(validActionWithCapture)>>()));
-
-  EXPECT_FALSE(isActionTupleType<std::tuple<decltype(invalidAction)>>());
-  EXPECT_FALSE(
-      (isActionTupleType<std::tuple<decltype(validAction),
-                                    decltype(invalidActionWithCapture)>>()));
-}
-
 TEST(ValidationTests, transitions) {
   using susml::tuplebased::Transition;
   using susml::tuplebased::validate::isTransitionType;
@@ -113,35 +43,35 @@ TEST(ValidationTests, transitionTuples) {
   using susml::tuplebased::validate::isValidTransitionTupleType;
 
   EXPECT_TRUE((isValidTransitionTupleType<
-               std::tuple<Transition<int, bool>, Transition<int, bool>>, int,
-               bool>()));
-
-  EXPECT_FALSE((isValidTransitionTupleType<
-                std::tuple<Transition<int, int>, Transition<int, bool>>, int,
-                bool>()));
-
-  EXPECT_FALSE((isValidTransitionTupleType<
-                std::tuple<Transition<int, bool>, Transition<int, int>>, int,
-                bool>()));
-
-  EXPECT_TRUE((isValidTransitionTupleType<
-               std::tuple<
-                   Transition<int, bool, std::tuple<bool (*)()>>,
-                   Transition<int, bool, std::tuple<>, std::tuple<void (*)()>>>,
+               std::tuple<Transition<int, bool, bool (*)(), void (*)()>,
+                          Transition<int, bool, bool (*)(), void (*)()>>,
                int, bool>()));
 
-  EXPECT_FALSE(
+  EXPECT_FALSE((isValidTransitionTupleType<
+                std::tuple<Transition<int, int, bool (*)(), void (*)()>,
+                           Transition<int, bool, bool (*)(), void (*)()>>,
+                int, bool>()));
+
+  EXPECT_FALSE((isValidTransitionTupleType<
+                std::tuple<Transition<int, bool, bool (*)(), void (*)()>,
+                           Transition<int, int, bool (*)(), void (*)()>>,
+                int, bool>()));
+
+  EXPECT_TRUE(
       (isValidTransitionTupleType<
-          std::tuple<
-              Transition<int, int, std::tuple<bool (*)()>>,
-              Transition<int, bool, std::tuple<>, std::tuple<void (*)()>>>,
+          std::tuple<Transition<int, bool, std::function<bool()>, void (*)()>,
+                     Transition<int, bool, bool (*)(), void (*)()>>,
           int, bool>()));
 
   EXPECT_FALSE((isValidTransitionTupleType<
-                std::tuple<
-                    Transition<int, bool, std::tuple<bool (*)()>>,
-                    Transition<int, int, std::tuple<>, std::tuple<void (*)()>>>,
+                std::tuple<Transition<int, int, bool (*)(), void (*)()>,
+                           Transition<int, bool, bool (*)(), void (*)()>>,
                 int, bool>()));
+
+  EXPECT_FALSE((isValidTransitionTupleType<
+                std::tuple<Transition<int, bool, bool (*)(), void (*)()>,
+                           Transition<int, int, bool (*)(), void (*)()>>,
+                int, int>()));
 }
 
 TEST(TransitionTests, basic) {
@@ -150,13 +80,14 @@ TEST(TransitionTests, basic) {
   enum class State { off, on };
   enum class Event { turnOn, turnOff };
 
-  const auto t = Transition(State::off, State::on, Event::turnOn);
+  const auto t = Transition{State::off, State::on, Event::turnOn,
+                            [] { return true; }, [] {}};
 
   EXPECT_EQ(State::off, t.source);
   EXPECT_EQ(State::on, t.target);
   EXPECT_EQ(Event::turnOn, t.event);
 
-  EXPECT_TRUE(t.checkGuards());
+  EXPECT_TRUE(t.guard());
 }
 
 TEST(TransitionTests, basicWithGuard) {
@@ -167,131 +98,29 @@ TEST(TransitionTests, basicWithGuard) {
 
   auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
                                // states and events for this test
-                      std::make_tuple(getVal)};
+                      getVal, []{}};
 
-  EXPECT_FALSE(t.checkGuards()) << "should return false because val is false";
+  EXPECT_FALSE(t.guard()) << "should return false because val is false";
 
   val = true;
-  EXPECT_TRUE(t.checkGuards()) << "should return true because val is true";
+  EXPECT_TRUE(t.guard()) << "should return true because val is true";
 }
 
 TEST(TransitionTests, basicWithAction) {
   using susml::tuplebased::Transition;
 
   bool val = false;
+  auto unitGuard = [] { return true; };
   auto setVal = [&val] { val = true; };
 
-  auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
+  auto t = Transition(0, 0, 0, // 0 integers because we don't really care about
                                // states and events for this test
-                      std::tuple<>(), std::make_tuple(setVal)};
+                      unitGuard, setVal);
 
   ASSERT_FALSE(val);
 
-  t.executeActions(); // should set val to true
+  t.action(); // should set val to true
   EXPECT_TRUE(val);
-}
-
-TEST(TransitionTests, multipleGuards) {
-  using susml::tuplebased::Transition;
-
-  bool valA = false;
-  int valB = 0;
-  std::string valC = "";
-
-  auto getValA = [&valA] { return valA; };
-  auto isValBGreaterThanZero = [&valB] { return (valB > 0); };
-  auto isValCHello = [&valC] { return (valC == "hello"); };
-
-  auto t =
-      Transition{0, 0, 0, // 0 integers because we don't really care about
-                          // states and events for this test
-                 std::make_tuple(getValA, isValBGreaterThanZero, isValCHello)};
-
-  EXPECT_FALSE(t.checkGuards()) << "should return false because valA is false";
-
-  valA = true;
-  EXPECT_FALSE(t.checkGuards())
-      << "should return false because valB is not greater than zero";
-
-  valB = 1;
-  EXPECT_FALSE(t.checkGuards())
-      << "should return false because valC is not equal to \"hello\".";
-
-  valC = "hello";
-  EXPECT_TRUE(t.checkGuards());
-
-  valA = false;
-  EXPECT_FALSE(t.checkGuards()) << "should return false because valA is false";
-
-  valA = true;
-  valB = 0;
-  EXPECT_FALSE(t.checkGuards())
-      << "should return false because valB is not greater than zero";
-}
-
-TEST(TransitionTests, multipleActions) {
-  using susml::tuplebased::Transition;
-
-  bool valA = false;
-  int valB = 0;
-  std::string valC = "";
-
-  auto setValA = [&valA] { valA = true; };
-  auto setValBToOne = [&valB] { valB = 1; };
-  auto setValCToHello = [&valC] { valC = "hello"; };
-
-  auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
-                               // states and events for this test
-                      std::tuple<>(),
-                      std::make_tuple(setValA, setValBToOne, setValCToHello)};
-
-  ASSERT_FALSE(valA);
-  ASSERT_EQ(0, valB);
-  ASSERT_EQ("", valC);
-
-  t.executeActions();
-  EXPECT_TRUE(valA);
-  EXPECT_EQ(1, valB);
-  EXPECT_EQ("hello", valC);
-}
-
-TEST(TransitionTests, multipleActionsExeuctionOrder) {
-  using susml::tuplebased::Transition;
-
-  std::vector<int> out{};
-
-  auto pushZero = [&out] { out.push_back(0); };
-  auto pushOne = [&out] { out.push_back(1); };
-  auto pushTwo = [&out] { out.push_back(2); };
-  auto pushThree = [&out] { out.push_back(3); };
-
-  {
-    auto t = Transition{0, 0, 0, // 0 integers because we don't really care
-                                 // about states and events for this test
-                        std::tuple<>(),
-                        std::make_tuple(pushZero, pushOne, pushTwo, pushThree)};
-
-    ASSERT_TRUE(out.empty());
-
-    t.executeActions();
-    EXPECT_EQ((std::vector{0, 1, 2, 3}), out);
-
-    out.clear();
-  }
-
-  {
-    auto t = Transition{0, 0, 0, // 0 integers because we don't really care
-                                 // about states and events for this test
-                        std::tuple<>(),
-                        std::make_tuple(pushOne, pushZero, pushOne, pushThree)};
-
-    ASSERT_TRUE(out.empty());
-
-    t.executeActions();
-    EXPECT_EQ((std::vector{1, 0, 1, 3}), out);
-
-    out.clear();
-  }
 }
 
 TEST(StateMachineTests, basicTransition) {
@@ -299,13 +128,13 @@ TEST(StateMachineTests, basicTransition) {
   enum class State { on, off };
   enum class Event { turnOn, turnOff };
 
-  using Transition = susml::tuplebased::Transition<State, Event>;
+  using Transition = susml::tuplebased::Transition<State, Event, bool(*)(), void(*)()>;
   using StateMachine =
       susml::tuplebased::StateMachine<State, Event,
                                       std::tuple<Transition, Transition>>;
 
-  Transition onToOff(State::on, State::off, Event::turnOff);
-  Transition offToOn(State::off, State::on, Event::turnOn);
+  Transition onToOff{State::on, State::off, Event::turnOff, []{return true; }, []{}};
+  Transition offToOn{State::off, State::on, Event::turnOn, []{return true; }, []{}};
 
   StateMachine m{std::make_tuple(offToOn, onToOff), State::off};
 
@@ -335,14 +164,12 @@ TEST(StateMachineTests, transitionWithGaurdAndActions) {
 
   std::vector<std::string> reports;
 
-  tuplebased::Transition offToOn(
-      State::off, State::on, Event::turnOn,
-      std::make_tuple([&] { return readyForOn; }),
-      std::make_tuple([&] { reports.push_back("turnOn"); }));
+  tuplebased::Transition offToOn{
+      State::off, State::on, Event::turnOn, [&] { return readyForOn; },
+      [&] { reports.push_back("turnOn"); }};
   tuplebased::Transition onToOff(
-      State::on, State::off, Event::turnOff,
-      std::make_tuple([&] { return readyForOff; }),
-      std::make_tuple([&] { reports.push_back("turnOff"); }));
+      State::on, State::off, Event::turnOff, [&] { return readyForOff; },
+      [&] { reports.push_back("turnOff"); });
 
   auto transitions = std::make_tuple(offToOn, onToOff);
 
@@ -404,9 +231,10 @@ struct Update {
 auto makeStateMachine(int &delta, bool &a, bool &b) {
 
   auto And = [&](bool desiredA, bool desiredB) {
-    return std::make_tuple([&a, &b, desiredA, desiredB] { return a == desiredA && b == desiredB; });
+    return
+        [&a, &b, desiredA, desiredB] { return a == desiredA && b == desiredB; };
   };
-  auto NoAction = std::make_tuple([&] {});
+  auto NoAction = [&] {};
 
   auto transitions = std::make_tuple(
       Transition(State::idle, // false false
@@ -423,7 +251,7 @@ auto makeStateMachine(int &delta, bool &a, bool &b) {
                  State::clockwise2, Event::update, And(true, true), NoAction),
       Transition(State::clockwise3, // true false
                  State::idle, Event::update, And(false, false),
-                 std::make_tuple([&] { delta++; })),
+                 [&] { delta++; }),
       Transition(State::idle, // false false
                  State::counterclockwise1, Event::update, And(true, false),
                  NoAction),
@@ -443,7 +271,7 @@ auto makeStateMachine(int &delta, bool &a, bool &b) {
                  NoAction),
       Transition(State::counterclockwise3, // false true
                  State::idle, Event::update, And(false, false),
-                 std::make_tuple([&] { delta--; })));
+                 [&] { delta--; }));
 
   return StateMachine<State, Event, decltype(transitions)>(transitions,
                                                            State::idle);

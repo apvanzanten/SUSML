@@ -21,12 +21,12 @@ constexpr auto makeTransition(std::size_t &counter) {
       ((Index + 1) < TotalTransitions) ? Index + 1 : 0;
 
   if constexpr (!WithGuard) {
-    return Transition(source, target, true, std::make_tuple(),
-                      std::make_tuple([&] { counter += Index; }));
+    return Transition(
+        source, target, true, [] { return true; }, [&] { counter += Index; });
   } else if constexpr (WithGuard) {
-    return Transition(source, target, true,
-                      std::make_tuple([&] { return ((counter++ & 1) == 0); }),
-                      std::make_tuple([&] { counter += Index; }));
+    return Transition(
+        source, target, true, [&] { return ((counter++ & 1) == 0); },
+        [&] { counter += Index; });
   }
 }
 

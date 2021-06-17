@@ -384,10 +384,10 @@ using susml::tuplebased::Transition;
 
 auto makeStateMachine(int &delta, bool &a, bool &b) {
   auto And = [&](bool desiredA, bool desiredB) {
-    return std::make_tuple([&a, &b, desiredA, desiredB] { return a == desiredA && b == desiredB; });
+    return
+        [&a, &b, desiredA, desiredB] { return a == desiredA && b == desiredB; };
   };
-  auto NoAction =
-      std::make_tuple([&] {});
+  auto NoAction = [&] {};
 
   auto transitions = std::make_tuple(
       Transition(State::idle, // false false
@@ -404,7 +404,7 @@ auto makeStateMachine(int &delta, bool &a, bool &b) {
                  State::clockwise2, Event::update, And(true, true), NoAction),
       Transition(State::clockwise3, // true false
                  State::idle, Event::update, And(false, false),
-                 std::make_tuple([&] { delta++; })),
+                 [&] { delta++; }),
       Transition(State::idle, // false false
                  State::counterclockwise1, Event::update, And(true, false),
                  NoAction),
@@ -424,7 +424,7 @@ auto makeStateMachine(int &delta, bool &a, bool &b) {
                  NoAction),
       Transition(State::counterclockwise3, // false true
                  State::idle, Event::update, And(false, false),
-                 std::make_tuple([&] { delta--; })));
+                 [&] { delta--; }));
 
   return susml::tuplebased::StateMachine<State, Event, decltype(transitions)>(
       transitions, State::idle);

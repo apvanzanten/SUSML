@@ -9,11 +9,11 @@
 
 #ifndef PRINT_INFO
 #define PRINT_INFO (false)
-#endif 
+#endif
 
 #if PRINT_INFO == (true)
 #include <iostream>
-#endif 
+#endif
 
 #include <type_traits>
 
@@ -26,16 +26,16 @@ constexpr auto makeTransition(std::size_t &counter) {
   constexpr auto source = Index;
   constexpr auto target = ((Index + 1) < TotalTransitions) ? Index + 1 : 0;
 
-  constexpr auto guards = std::make_tuple();
-  auto actions = std::make_tuple([&] { 
-    counter += Index + 1; 
+  constexpr auto guard = [] { return true; };
+  auto action = [&] {
+    counter += Index + 1;
 #if PRINT_INFO == (true)
     std::cout << ".";
 #endif
-  });
+  };
 
-  return Transition<int, int, decltype(guards), decltype(actions)>(
-      source, target, true, guards, actions);
+  return Transition<int, int, decltype(guard), decltype(action)>(
+      source, target, true, guard, action);
 }
 
 template <std::size_t... Indices>
@@ -57,10 +57,11 @@ int main() {
   }
 
 #if PRINT_INFO == (true)
-  std::cout << std::endl << std::boolalpha
-    << "num transitions: " << NUM_TRANSITIONS << std::endl
-    << "num triggers: " << NUM_TRIGGERS << std::endl;
-#endif 
+  std::cout << std::endl
+            << std::boolalpha << "num transitions: " << NUM_TRANSITIONS
+            << std::endl
+            << "num triggers: " << NUM_TRIGGERS << std::endl;
+#endif
 
   return (counter % 7);
 }
