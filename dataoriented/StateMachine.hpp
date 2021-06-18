@@ -14,26 +14,38 @@
 #ifndef DATAORIENTED_STATEMACHINE_HPP
 #define DATAORIENTED_STATEMACHINE_HPP
 
-#include <array>
-#include <tuple>
-#include <utility>
-#include <variant>
+#include <functional>
+#include <vector>
 
 #include "Transition.hpp"
 
 namespace susml::dataoriented {
 
-template <typename StateT, typename EventT, typename GuardVariant,
-          typename ActionVariant, std::size_t NumTransitions>
+template <typename StateT, typename EventT,
+          typename GuardT = std::function<bool()>,
+          typename ActionT = std::function<void()>>
 struct StateMachine {
   using State = StateT;
   using Event = EventT;
+  using Guard = GuardT;
+  using Action = ActionT;
 
-  using Sources = std::array<State, NumTransitions>;
-  using Targets = std::array<State, NumTransitions>;
-  using Events = std::array<Event, NumTransitions>;
-  using Guards = std::array<GuardVariant, NumTransitions>;
-  using Actions = std::array<ActionVariant, NumTransitions>;
+  using Sources = std::vector<State>;
+  using Targets = std::vector<State>;
+  using Events = std::vector<Event>;
+  using Guards = std::vector<Guard>;
+  using Actions = std::vector<Action>;
+
+  static_assert(std::is_invocable<Guard>::value, "Guard should be invocable");
+  static_assert(std::is_invocable<Action>::value, "Action should be invocable");
+  static_assert(
+      std::is_same<typename std::invoke_result<Guard>::type, bool>::value,
+      "Guard should return bool.");
+  static_assert(
+      std::is_same<typename std::invoke_result<Action>::type, void>::value,
+      "Action should return void.");
+
+  State currentState;
 
   Sources sources;
   Targets targets;
@@ -41,26 +53,23 @@ struct StateMachine {
   Guards guards;
   Actions actions;
 
-  State currentState;
+  constexpr StateMachine(State initialState, Sources sources, Targets targets,
+                         Events events, Guards guards, Actions actions)
+      : currentState(initialState), sources(std::move(sources)),
+        targets(std::move(targets)), events(std::move(events)),
+        guards(std::move(guards)), actions(std::move(actions)) {}
 
-  constexpr StateMachine(Sources sources, Targets targets, Events events,
-                         Guards guards, Actions actions, State initialState)
-      : sources(sources), targets(targets), events(events), guards(guards),
-        actions(actions), currentState(initialState) {}
-
-  constexpr bool checkGuard(GuardVariant &gv) {
-    return std::visit([&](auto &g) { return g(); }, gv);
-  }
-
-  constexpr void executeAction(ActionVariant &av) {
-    std::visit([&](auto &a) { a(); }, av);
+  constexpr bool isValid() const {
+    return (sources.size() == targets.size()) &&
+           (targets.size() == events.size()) &&
+           (events.size() == guards.size()) &&
+           (guards.size() == actions.size());
   }
 
   constexpr void trigger(const Event &e) {
-    for (std::size_t i = 0; i < NumTransitions; i++) {
-      if (sources[i] == currentState && events[i] == e &&
-          checkGuard(guards[i])) {
-        executeAction(actions[i]);
+    for (std::size_t i = 0; i < sources.size(); i++) {
+      if (sources[i] == currentState && events[i] == e && guards[i]()) {
+        actions[i]();
         currentState = targets[i];
         return;
       }
@@ -68,27 +77,31 @@ struct StateMachine {
   }
 };
 
-template <typename State, typename... Transitions>
+template <typename State, typename Transition>
 constexpr auto fromTransitions(State initialState,
-                               const Transitions &...transitions) {
-  constexpr auto NumTransitions = sizeof...(Transitions);
+                               const std::vector<Transition> &transitions) {
 
-  auto sources = std::array{transitions.source...};
-  auto targets = std::array{transitions.target...};
-  auto events = std::array{transitions.event...};
+  using Event = typename Transition::Event;
+  using Guard = typename Transition::Guard;
+  using Action = typename Transition::Action;
 
-  using Event = typename decltype(events)::value_type;
+  StateMachine<State, Event, Guard, Action> m{
+      initialState, {}, {}, {}, {}, {}}; // all vectors default-initialized
+  m.sources.reserve(transitions.size());
+  m.targets.reserve(transitions.size());
+  m.events.reserve(transitions.size());
+  m.actions.reserve(transitions.size());
+  m.guards.reserve(transitions.size());
 
-  using GuardVariant = std::variant<typename Transitions::Guard...>;
-  using ActionVariant = std::variant<typename Transitions::Action...>;
+  for (const Transition &t : transitions) {
+    m.sources.push_back(t.source);
+    m.targets.push_back(t.target);
+    m.events.push_back(t.event);
+    m.actions.push_back(t.action);
+    m.guards.push_back(t.guard);
+  }
 
-  auto guards = std::array{GuardVariant{transitions.guard}...};
-  auto actions = std::array{ActionVariant{transitions.action}...};
-
-  using M =
-      StateMachine<State, Event, GuardVariant, ActionVariant, NumTransitions>;
-
-  return M(sources, targets, events, guards, actions, initialState);
+  return m;
 }
 
 } // namespace susml::dataoriented

@@ -94,14 +94,13 @@ constexpr auto makeStateMachine(std::size_t &counter) {
 } // namespace minimal
 
 namespace dataoriented {
-using tuplebased::makeTransition;
 
 template <bool WithGuards, std::size_t... Indices>
 constexpr auto makeStateMachineImpl(const std::index_sequence<Indices...> &,
                                     std::size_t &counter) {
   constexpr auto totalTransitions = sizeof...(Indices);
   return susml::dataoriented::fromTransitions(
-      std::size_t(0), makeTransition<Indices, totalTransitions, WithGuards>(counter)...);
+      std::size_t(0), std::vector{minimal::makeTransition<Indices, totalTransitions, WithGuards>(counter)...});
 }
 
 template <std::size_t NumTransitions, bool WithGuards = false>

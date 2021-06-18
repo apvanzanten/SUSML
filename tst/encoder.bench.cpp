@@ -274,50 +274,40 @@ namespace dataoriented {
 using susml::Transition;
 
 auto makeStateMachine(int &delta) {
+  std::function NoGuard = [] { return true; };
+  std::function NoAction = [] {};
+
   return susml::dataoriented::fromTransitions(
       State::idle,
-      Transition(
-          State::idle, State::clockwise1, Event::updateB, [] { return true; },
-          [] {}),
-      Transition(
-          State::clockwise1, State::idle, Event::updateB, [] { return true; },
-          [] {}),
-      Transition(
-          State::clockwise1, State::clockwise2, Event::updateA,
-          [] { return true; }, [] {}),
-      Transition(
-          State::clockwise2, State::clockwise1, Event::updateA,
-          [] { return true; }, [] {}),
-      Transition(
-          State::clockwise2, State::clockwise3, Event::updateB,
-          [] { return true; }, [] {}),
-      Transition(
-          State::clockwise3, State::clockwise2, Event::updateB,
-          [] { return true; }, [] {}),
-      Transition(
-          State::clockwise3, State::idle, Event::updateA, [] { return true; },
-          [&] { delta++; }),
-      Transition(
-          State::idle, State::counterclockwise1, Event::updateA,
-          [] { return true; }, [] {}),
-      Transition(
-          State::counterclockwise1, State::idle, Event::updateA,
-          [] { return true; }, [] {}),
-      Transition(
-          State::counterclockwise1, State::counterclockwise2, Event::updateB,
-          [] { return true; }, [] {}),
-      Transition(
-          State::counterclockwise2, State::counterclockwise1, Event::updateB,
-          [] { return true; }, [] {}),
-      Transition(
-          State::counterclockwise2, State::counterclockwise3, Event::updateA,
-          [] { return true; }, [] {}),
-      Transition(
-          State::counterclockwise3, State::counterclockwise2, Event::updateA,
-          [] { return true; }, [] {}),
-      Transition(
-          State::counterclockwise3, State::idle, Event::updateB,
-          [] { return true; }, [&] { delta--; }));
+      std::vector{Transition(State::idle, State::clockwise1, Event::updateB,
+                             NoGuard, NoAction),
+                  Transition(State::clockwise1, State::idle, Event::updateB,
+                             NoGuard, NoAction),
+                  Transition(State::clockwise1, State::clockwise2,
+                             Event::updateA, NoGuard, NoAction),
+                  Transition(State::clockwise2, State::clockwise1,
+                             Event::updateA, NoGuard, NoAction),
+                  Transition(State::clockwise2, State::clockwise3,
+                             Event::updateB, NoGuard, NoAction),
+                  Transition(State::clockwise3, State::clockwise2,
+                             Event::updateB, NoGuard, NoAction),
+                  Transition(State::clockwise3, State::idle, Event::updateA,
+                             NoGuard, std::function([&] { delta++; })),
+                  Transition(State::idle, State::counterclockwise1,
+                             Event::updateA, NoGuard, NoAction),
+                  Transition(State::counterclockwise1, State::idle,
+                             Event::updateA, NoGuard, NoAction),
+                  Transition(State::counterclockwise1, State::counterclockwise2,
+                             Event::updateB, NoGuard, NoAction),
+                  Transition(State::counterclockwise2, State::counterclockwise1,
+                             Event::updateB, NoGuard, NoAction),
+                  Transition(State::counterclockwise2, State::counterclockwise3,
+                             Event::updateA, NoGuard, NoAction),
+                  Transition(State::counterclockwise3, State::counterclockwise2,
+                             Event::updateA, NoGuard, NoAction),
+                  Transition(State::counterclockwise3, State::idle,
+                             Event::updateB, NoGuard,
+                             std::function([&] { delta--; }))});
 }
 
 template <typename Machine> void testMachine(Machine &m, int &delta) {
@@ -665,97 +655,98 @@ auto makeStateMachine(int &delta, const bool &a, const bool &b) {
   using namespace susml::factory;
   using susml::dataoriented::StateMachine;
 
+  auto fn = [](auto f) { return std::function(f); };
+
   return susml::dataoriented::fromTransitions(
       State::idle,
-      From(State::idle) // false false
-          .To(State::clockwise1)
-          .On(Event::update)
-          .If([&] { return a == false && b == true; })
-          .Do([] {})
-          .make(),
-      From(State::clockwise1) // false true
-          .To(State::idle)
-          .On(Event::update)
-          .If([&] { return a == false && b == false; })
-          .Do([] {})
-          .make(),
-      From(State::clockwise1) // false true
-          .To(State::clockwise2)
-          .On(Event::update)
-          .If([&] { return a == true && b == true; })
-          .Do([] {})
-          .make(),
-      From(State::clockwise2) // true true
-          .To(State::clockwise1)
-          .On(Event::update)
-          .If([&] { return a == false && b == true; })
-          .Do([] {})
-          .make(),
-      From(State::clockwise2) // true true
-          .To(State::clockwise3)
-          .On(Event::update)
-          .If([&] { return a == true && b == false; })
-          .Do([] {})
-          .make(),
-      From(State::clockwise3) // true false
-          .To(State::clockwise2)
-          .On(Event::update)
-          .If([&] { return a == true && b == true; })
-          .Do([] {})
-          .make(),
-      From(State::clockwise3) // true false
-          .To(State::idle)
-          .On(Event::update)
-          .If([&] { return a == false && b == false; })
-          .Do([&] { delta++; })
-          .make(),
-      From(State::idle) // false false
-          .To(State::counterclockwise1)
-          .On(Event::update)
-          .If([&] { return a == true && b == false; })
-          .Do([] {})
-          .make(),
-      From(State::counterclockwise1) // true false
-          .To(State::idle)
-          .On(Event::update)
-          .If([&] { return a == false && b == false; })
-          .Do([] {})
-          .make(),
-      From(State::counterclockwise1) // true false
-          .To(State::counterclockwise2)
-          .On(Event::update)
-          .If([&] { return a == true && b == true; })
-          .Do([] {})
-          .make(),
-      From(State::counterclockwise2) // true true
-          .To(State::counterclockwise1)
-          .On(Event::update)
-          .If([&] { return a == true && b == false; })
-          .Do([] {})
-          .make(),
-      From(State::counterclockwise2) // true true
-          .To(State::counterclockwise3)
-          .On(Event::update)
-          .If([&] { return a == false && b == true; })
-          .Do([] {})
-          .make(),
-      From(State::counterclockwise3) // false true
-          .To(State::counterclockwise2)
-          .On(Event::update)
-          .If([&] { return a == true && b == true; })
-          .Do([] {})
-          .make(),
-      From(State::counterclockwise3) // false true
-          .To(State::idle)
-          .On(Event::update)
-          .If([&] { return a == false && b == false; })
-          .Do([&] { delta--; })
-          .make());
+      std::vector{From(State::idle) // false false
+                      .To(State::clockwise1)
+                      .On(Event::update)
+                      .If(fn([&] { return a == false && b == true; }))
+                      .Do(fn([] {}))
+                      .make(),
+                  From(State::clockwise1) // false true
+                      .To(State::idle)
+                      .On(Event::update)
+                      .If(fn([&] { return a == false && b == false; }))
+                      .Do(fn([] {}))
+                      .make(),
+                  From(State::clockwise1) // false true
+                      .To(State::clockwise2)
+                      .On(Event::update)
+                      .If(fn([&] { return a == true && b == true; }))
+                      .Do(fn([] {}))
+                      .make(),
+                  From(State::clockwise2) // true true
+                      .To(State::clockwise1)
+                      .On(Event::update)
+                      .If(fn([&] { return a == false && b == true; }))
+                      .Do(fn([] {}))
+                      .make(),
+                  From(State::clockwise2) // true true
+                      .To(State::clockwise3)
+                      .On(Event::update)
+                      .If(fn([&] { return a == true && b == false; }))
+                      .Do(fn([] {}))
+                      .make(),
+                  From(State::clockwise3) // true false
+                      .To(State::clockwise2)
+                      .On(Event::update)
+                      .If(fn([&] { return a == true && b == true; }))
+                      .Do(fn([] {}))
+                      .make(),
+                  From(State::clockwise3) // true false
+                      .To(State::idle)
+                      .On(Event::update)
+                      .If(fn([&] { return a == false && b == false; }))
+                      .Do(fn([&] { delta++; }))
+                      .make(),
+                  From(State::idle) // false false
+                      .To(State::counterclockwise1)
+                      .On(Event::update)
+                      .If(fn([&] { return a == true && b == false; }))
+                      .Do(fn([] {}))
+                      .make(),
+                  From(State::counterclockwise1) // true false
+                      .To(State::idle)
+                      .On(Event::update)
+                      .If(fn([&] { return a == false && b == false; }))
+                      .Do(fn([] {}))
+                      .make(),
+                  From(State::counterclockwise1) // true false
+                      .To(State::counterclockwise2)
+                      .On(Event::update)
+                      .If(fn([&] { return a == true && b == true; }))
+                      .Do(fn([] {}))
+                      .make(),
+                  From(State::counterclockwise2) // true true
+                      .To(State::counterclockwise1)
+                      .On(Event::update)
+                      .If(fn([&] { return a == true && b == false; }))
+                      .Do(fn([] {}))
+                      .make(),
+                  From(State::counterclockwise2) // true true
+                      .To(State::counterclockwise3)
+                      .On(Event::update)
+                      .If(fn([&] { return a == false && b == true; }))
+                      .Do(fn([] {}))
+                      .make(),
+                  From(State::counterclockwise3) // false true
+                      .To(State::counterclockwise2)
+                      .On(Event::update)
+                      .If(fn([&] { return a == true && b == true; }))
+                      .Do(fn([] {}))
+                      .make(),
+                  From(State::counterclockwise3) // false true
+                      .To(State::idle)
+                      .On(Event::update)
+                      .If(fn([&] { return a == false && b == false; }))
+                      .Do(fn([&] { delta--; }))
+                      .make()});
 }
 
 template <typename Machine>
-void testMachine(Machine &m, int &delta, bool &a,
-                 bool &b) {
+void testMachine(Machine &m, int &delta, bool &a, bool &b) {
   const bool aStart = a;
   const bool bStart = b;
   const int deltaStart = delta;

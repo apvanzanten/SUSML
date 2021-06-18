@@ -21,32 +21,31 @@ TEST(StateMachineTests, basicOnOff) {
   enum class State { on, off };
   enum class Event { turnOn, turnOff };
 
+  auto Fn = [](auto e) { return std::function(e); };
+
   bool isReadytToTurnOn = false;
 
   int numTimesTurnedOn = 0;
   int numTimesTurnedOff = 0;
 
-  auto guardOffToOn = [&] { return isReadytToTurnOn; };
-  auto guardOnToOff = [&] { return true; };
+  auto guardOffToOn = Fn([&] { return isReadytToTurnOn; });
+  auto guardOnToOff = Fn([&] { return true; });
 
-  auto actionOffToOn = [&] { numTimesTurnedOn++; };
-  auto actionOnToOff = [&] { numTimesTurnedOff++; };
+  auto actionOffToOn = Fn([&] { numTimesTurnedOn++; });
+  auto actionOnToOff = Fn([&] { numTimesTurnedOff++; });
 
-  using GuardVariant =
-      std::variant<decltype(guardOffToOn), decltype(guardOnToOff)>;
-  using ActionVariant =
-      std::variant<decltype(actionOffToOn), decltype(actionOnToOff)>;
-
-  auto m = StateMachine<State, Event, GuardVariant, ActionVariant, 2>{
-      {State::off, State::on},         {State::on, State::off},
-      {Event::turnOn, Event::turnOff}, {guardOffToOn, guardOnToOff},
-      {actionOffToOn, actionOnToOff},  State::off};
+  auto m = StateMachine<State, Event>{State::off,
+                                      {State::off, State::on},
+                                      {State::on, State::off},
+                                      {Event::turnOn, Event::turnOff},
+                                      {guardOffToOn, guardOnToOff},
+                                      {actionOffToOn, actionOnToOff}};
 
   m.trigger(Event::turnOn);
   EXPECT_EQ(State::off, m.currentState);
   EXPECT_EQ(0, numTimesTurnedOn);
   EXPECT_EQ(0, numTimesTurnedOff);
-  
+
   isReadytToTurnOn = true;
   m.trigger(Event::turnOn);
   EXPECT_EQ(State::on, m.currentState);
@@ -81,36 +80,40 @@ TEST(StateMachineTests, fromTransitionsOnOff) {
   int numTimesTurnedOn = 0;
   int numTimesTurnedOff = 0;
 
-  Transition offToOn(State::off, State::on, Event::turnOn, [&] { return isReadytToTurnOn; }, [&] { numTimesTurnedOn++; });
-  Transition onToOff(State::on, State::off, Event::turnOff, [&] { return true; }, [&] { numTimesTurnedOff++; });
+  auto m = fromTransitions(
+      State::off,
+      std::vector{Transition(State::off, State::on, Event::turnOn,
+                             std::function([&] { return isReadytToTurnOn; }),
+                             std::function([&] { numTimesTurnedOn++; })),
+                  Transition(State::on, State::off, Event::turnOff,
+                             std::function([&] { return true; }),
+                             std::function([&] { numTimesTurnedOff++; }))});
 
-  auto m = fromTransitions(State::off, offToOn, onToOff);
+m.trigger(Event::turnOn);
+EXPECT_EQ(State::off, m.currentState);
+EXPECT_EQ(0, numTimesTurnedOn);
+EXPECT_EQ(0, numTimesTurnedOff);
 
-  m.trigger(Event::turnOn);
-  EXPECT_EQ(State::off, m.currentState);
-  EXPECT_EQ(0, numTimesTurnedOn);
-  EXPECT_EQ(0, numTimesTurnedOff);
-  
-  isReadytToTurnOn = true;
-  m.trigger(Event::turnOn);
-  EXPECT_EQ(State::on, m.currentState);
-  EXPECT_EQ(1, numTimesTurnedOn);
-  EXPECT_EQ(0, numTimesTurnedOff);
+isReadytToTurnOn = true;
+m.trigger(Event::turnOn);
+EXPECT_EQ(State::on, m.currentState);
+EXPECT_EQ(1, numTimesTurnedOn);
+EXPECT_EQ(0, numTimesTurnedOff);
 
-  m.trigger(Event::turnOn);
-  EXPECT_EQ(State::on, m.currentState);
-  EXPECT_EQ(1, numTimesTurnedOn);
-  EXPECT_EQ(0, numTimesTurnedOff);
+m.trigger(Event::turnOn);
+EXPECT_EQ(State::on, m.currentState);
+EXPECT_EQ(1, numTimesTurnedOn);
+EXPECT_EQ(0, numTimesTurnedOff);
 
-  m.trigger(Event::turnOff);
-  EXPECT_EQ(State::off, m.currentState);
-  EXPECT_EQ(1, numTimesTurnedOn);
-  EXPECT_EQ(1, numTimesTurnedOff);
+m.trigger(Event::turnOff);
+EXPECT_EQ(State::off, m.currentState);
+EXPECT_EQ(1, numTimesTurnedOn);
+EXPECT_EQ(1, numTimesTurnedOff);
 
-  m.trigger(Event::turnOff);
-  EXPECT_EQ(State::off, m.currentState);
-  EXPECT_EQ(1, numTimesTurnedOn);
-  EXPECT_EQ(1, numTimesTurnedOff);
+m.trigger(Event::turnOff);
+EXPECT_EQ(State::off, m.currentState);
+EXPECT_EQ(1, numTimesTurnedOn);
+EXPECT_EQ(1, numTimesTurnedOff);
 }
 
 int main(int argc, char **argv) {
