@@ -58,4 +58,5 @@ AddTest(testTupleBased tuplebased.test.cpp)
 
 AddBenchmark(benchCircleUpTo32 circleUpTo32.bench.cpp)
 AddBenchmark(benchCircle64 circle64.bench.cpp)
-AddBenchmark(benchEncoder encoder.bench.cpp)
+AddBenchmark(benchEncoderEventBased encoderEventBased.bench.cpp)
+AddBenchmark(benchEncoderGuardBased encoderGuardBased.bench.cpp)
