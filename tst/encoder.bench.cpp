@@ -5,7 +5,7 @@
 #include "dataoriented/StateMachine.hpp"
 #include "factory.hpp"
 #include "minimal/StateMachine.hpp"
-#include "tuplebased/StateMachine.hpp"
+#include "tuplebased.hpp"
 
 namespace eventBased {
 enum class State {

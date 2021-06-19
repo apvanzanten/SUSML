@@ -12,11 +12,10 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with SUSML. If not, see <https://www.gnu.org/licenses/>.
 
-#ifndef TUPLEBASED_STATEMACHINE_HPP
-#define TUPLEBASED_STATEMACHINE_HPP
+#ifndef TUPLEBASED_HPP
+#define TUPLEBASED_HPP
 
 #include <algorithm>
-#include <tuple>
 #include <type_traits>
 
 #include "Transition.hpp"
