@@ -19,6 +19,101 @@ enum class State {
 
 enum class Event { updateA, updateB };
 
+namespace handcrafted {
+void trigger(eventBased::Event event, eventBased::State &currentState,
+             int &delta) {
+  using namespace eventBased;
+  switch (currentState) {
+  case State::idle: {
+    if (event == Event::updateA) {
+      currentState = State::counterclockwise1;
+    } else if (event == Event::updateB) {
+      currentState = State::clockwise1;
+    }
+    break;
+  }
+  case State::clockwise1: {
+    if (event == Event::updateA) {
+      currentState = State::clockwise2;
+    } else if (event == Event::updateB) {
+      currentState = State::idle;
+    }
+    break;
+  }
+  case State::clockwise2: {
+    if (event == Event::updateA) {
+      currentState = State::clockwise1;
+    } else if (event == Event::updateB) {
+      currentState = State::clockwise3;
+    }
+    break;
+  }
+  case State::clockwise3: {
+    if (event == Event::updateA) {
+      delta++;
+      currentState = State::idle;
+    } else if (event == Event::updateB) {
+      currentState = State::clockwise2;
+    }
+    break;
+  }
+  case State::counterclockwise1: {
+    if (event == Event::updateA) {
+      currentState = State::idle;
+    } else if (event == Event::updateB) {
+      currentState = State::counterclockwise2;
+    }
+    break;
+  }
+  case State::counterclockwise2: {
+    if (event == Event::updateA) {
+      currentState = State::counterclockwise3;
+    } else if (event == Event::updateB) {
+      currentState = State::counterclockwise1;
+    }
+    break;
+  }
+  case State::counterclockwise3: {
+    if (event == Event::updateA) {
+      currentState = State::counterclockwise2;
+    } else if (event == Event::updateB) {
+      delta--;
+      currentState = State::idle;
+    }
+    break;
+  }
+  }
+}
+
+static void encoderHCEventBased(benchmark::State &s) {
+  int delta = 0;
+  State currentState = State::idle;
+
+  static std::mt19937 mt{std::random_device{}()};
+  std::uniform_int_distribution<short> dist(0, 1);
+
+  auto getEvents = [&] {
+    std::vector<Event> events(s.range(0));
+    for (auto &e : events) {
+      e = (dist(mt) == 0) ? Event::updateA : Event::updateB;
+    }
+    return events;
+  };
+
+  for (auto _ : s) {
+    s.PauseTiming();
+    auto events = getEvents();
+    s.ResumeTiming();
+
+    for (const Event e : events) {
+      trigger(e, currentState, delta);
+    }
+  }
+
+  s.counters["d"] = delta;
+}
+} // namespace handcrafted
+
 namespace vectorbased {
 
 auto makeStateMachine(int &delta) {
@@ -221,6 +316,117 @@ struct Update {
   bool newA = false;
   bool newB = false;
 };
+
+namespace handcrafted {
+void trigger(guardBased::State &currentState, int &delta, bool &a, bool &b) {
+  using namespace guardBased;
+  switch (currentState) {
+  case State::idle: { // false false
+    if (a && !b) {
+      currentState = State::counterclockwise1;
+    } else if (!a && b) {
+      currentState = State::clockwise1;
+    }
+    break;
+  }
+  case State::clockwise1: { // false true
+    if (a && b) {
+      currentState = State::clockwise2;
+    } else if (!a && !b) {
+      currentState = State::idle;
+    }
+    break;
+  }
+  case State::clockwise2: { // true true
+    if (a && !b) {
+      currentState = State::clockwise1;
+    } else if (!a && b) {
+      currentState = State::clockwise3;
+    }
+    break;
+  }
+  case State::clockwise3: { // true false
+    if (!a && !b) {
+      delta++;
+      currentState = State::idle;
+    } else if (a && b) {
+      currentState = State::clockwise2;
+    }
+    break;
+  }
+  case State::counterclockwise1: { // true false
+    if (a && b) {
+      currentState = State::idle;
+    } else if (!a && !b) {
+      currentState = State::counterclockwise2;
+    }
+    break;
+  }
+  case State::counterclockwise2: { // true true
+    if (!a && b) {
+      currentState = State::counterclockwise3;
+    } else if (!b && a) {
+      currentState = State::counterclockwise1;
+    }
+    break;
+  }
+  case State::counterclockwise3: { // false true
+    if (a && b) {
+      currentState = State::counterclockwise2;
+    } else if (!a && !b) {
+      delta--;
+      currentState = State::idle;
+    }
+    break;
+  }
+  }
+}
+
+static void encoderHCGuardBased(benchmark::State &s) {
+  int delta = 0;
+  bool a = false;
+  bool b = false;
+  State currentState = State::idle;
+
+  static std::mt19937 mt{std::random_device{}()};
+  std::uniform_int_distribution<short> dist(0, 1);
+
+  auto getUpdates = [&] {
+    std::vector<Update> updates(s.range(0));
+
+    updates[0].newA = false;
+    updates[0].newA = false;
+
+    for (std::size_t i = 1; i < updates.size(); i++) {
+      updates[i] = updates[i - 1];
+
+      const auto r = dist(mt);
+      if (r == 0) {
+        updates[i].newA = !updates[i - 1].newA;
+      } else {
+        updates[i].newB = !updates[i - 1].newB;
+      }
+    }
+
+    return updates;
+  };
+
+  for (auto _ : s) {
+    s.PauseTiming();
+    auto updates = getUpdates();
+    s.ResumeTiming();
+
+    for (const auto u : updates) {
+      a = u.newA;
+      b = u.newB;
+
+      trigger(currentState, delta, a, b);
+    }
+  }
+
+  s.counters["d"] = delta;
+}
+} // namespace handcrafted
 
 namespace vectorbased {
 
@@ -469,8 +675,10 @@ static void encoderTBGuardBased(benchmark::State &s) {
 } // namespace tuplebased
 } // namespace guardBased
 
+using eventBased::handcrafted::encoderHCEventBased;
 using eventBased::tuplebased::encoderTBEventBased;
 using eventBased::vectorbased::encoderVBEventBased;
+using guardBased::handcrafted::encoderHCGuardBased;
 using guardBased::tuplebased::encoderTBGuardBased;
 using guardBased::vectorbased::encoderVBGuardBased;
 
@@ -493,6 +701,16 @@ BENCHMARK(encoderTBEventBased)
     ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK(encoderVBEventBased)
+    ->RangeMultiplier(2)
+    ->Range(numTriggersLowerBound, numTriggersUpperBound)
+    ->Unit(benchmark::kMicrosecond);
+
+BENCHMARK(encoderHCEventBased)
+    ->RangeMultiplier(2)
+    ->Range(numTriggersLowerBound, numTriggersUpperBound)
+    ->Unit(benchmark::kMicrosecond);
+
+BENCHMARK(encoderHCGuardBased)
     ->RangeMultiplier(2)
     ->Range(numTriggersLowerBound, numTriggersUpperBound)
     ->Unit(benchmark::kMicrosecond);
