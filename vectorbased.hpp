@@ -26,10 +26,21 @@ template <typename TransitionT> struct StateMachine {
   State currentState;
   std::vector<Transition> transitions;
 
+  constexpr bool isTransitionTakeable(Transition &t, const Event &event) {
+    if constexpr (Transition::HasGuard()) {
+      return t.source == currentState && t.event == event && t.guard();
+    }
+    if constexpr (!Transition::HasGuard()) {
+      return t.source == currentState && t.event == event;
+    }
+  }
+
   constexpr void trigger(const Event &event) {
     for (auto &t : transitions) {
-      if (t.source == currentState && t.event == event && t.guard()) {
-        t.action();
+      if (isTransitionTakeable(t, event)) {
+        if constexpr (Transition::HasAction()) {
+          t.action();
+        }
         currentState = t.target;
         break;
       }

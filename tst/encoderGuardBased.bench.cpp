@@ -288,41 +288,34 @@ auto makeStateMachine(int &delta, bool &a, bool &b) {
     return
         [&a, &b, desiredA, desiredB] { return a == desiredA && b == desiredB; };
   };
-  auto NoAction = [&] {};
-
   auto transitions = std::make_tuple(
       Transition(State::idle, // false false
-                 State::clockwise1, Event::update, And(false, true), NoAction),
+                 State::clockwise1, Event::update, And(false, true)),
       Transition(State::clockwise1, // false true
-                 State::idle, Event::update, And(false, false), NoAction),
+                 State::idle, Event::update, And(false, false)),
       Transition(State::clockwise1, // false true
-                 State::clockwise2, Event::update, And(true, true), NoAction),
+                 State::clockwise2, Event::update, And(true, true)),
       Transition(State::clockwise2, // true true
-                 State::clockwise1, Event::update, And(false, true), NoAction),
+                 State::clockwise1, Event::update, And(false, true)),
       Transition(State::clockwise2, // true true
-                 State::clockwise3, Event::update, And(true, false), NoAction),
+                 State::clockwise3, Event::update, And(true, false)),
       Transition(State::clockwise3, // true false
-                 State::clockwise2, Event::update, And(true, true), NoAction),
+                 State::clockwise2, Event::update, And(true, true)),
       Transition(State::clockwise3, // true false
                  State::idle, Event::update, And(false, false),
                  [&] { delta++; }),
       Transition(State::idle, // false false
-                 State::counterclockwise1, Event::update, And(true, false),
-                 NoAction),
+                 State::counterclockwise1, Event::update, And(true, false)),
       Transition(State::counterclockwise1, // true false
-                 State::idle, Event::update, And(false, false), NoAction),
+                 State::idle, Event::update, And(false, false)),
       Transition(State::counterclockwise1, // true false
-                 State::counterclockwise2, Event::update, And(true, true),
-                 NoAction),
+                 State::counterclockwise2, Event::update, And(true, true)),
       Transition(State::counterclockwise2, // true true
-                 State::counterclockwise1, Event::update, And(true, false),
-                 NoAction),
+                 State::counterclockwise1, Event::update, And(true, false)),
       Transition(State::counterclockwise2, // true true
-                 State::counterclockwise3, Event::update, And(false, true),
-                 NoAction),
+                 State::counterclockwise3, Event::update, And(false, true)),
       Transition(State::counterclockwise3, // false true
-                 State::counterclockwise2, Event::update, And(true, true),
-                 NoAction),
+                 State::counterclockwise2, Event::update, And(true, true)),
       Transition(State::counterclockwise3, // false true
                  State::idle, Event::update, And(false, false),
                  [&] { delta--; }));
@@ -397,7 +390,5 @@ BENCHMARK(encoderGuardBasedVB)
     ->RangeMultiplier(2)
     ->Range(numTriggersLowerBound, numTriggersUpperBound)
     ->Unit(benchmark::kMicrosecond);
-
-
 
 BENCHMARK_MAIN();

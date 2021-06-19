@@ -14,11 +14,13 @@
 
 #include "gtest/gtest.h"
 
+#include "Transition.hpp"
 #include "factory.hpp"
 
 #include <algorithm>
 
 using namespace susml::factory;
+using susml::NoneType;
 
 enum class State { on, off };
 std::ostream &operator<<(std::ostream &stream, State state) {
@@ -35,7 +37,7 @@ constexpr bool guardTrue() { return true; }
 constexpr bool guardFalse() { return false; }
 
 constexpr void actionA() { return; }
-constexpr void actionB() { return;  }
+constexpr void actionB() { return; }
 
 const PartialTransition<State, Event, bool (*)(), void (*)()> fullyPopulated{
     State::off, State::on, Event::turnOn, guardTrue, actionA};
@@ -51,14 +53,14 @@ std::ostream &operator<<(std::ostream &stream,
   using P = PartialTransition<Types...>;
   stream << "From(" << t.source << ").To(" << t.target << ").On(" << t.event
          << ")";
-  if constexpr (P::hasGuard()) {
+  if constexpr (P::HasGuard()) {
     stream << ".If(" << reinterpret_cast<void *>(t.guard) << ")";
-  } else if constexpr (!P::hasGuard()) {
+  } else if constexpr (!P::HasGuard()) {
     stream << ".If(None)";
   }
-  if constexpr (P::hasAction()) {
+  if constexpr (P::HasAction()) {
     stream << ".Do(" << reinterpret_cast<void *>(t.action) << ")";
-  } else if constexpr (!P::hasGuard()) {
+  } else if constexpr (!P::HasAction()) {
     stream << ".Do(None)";
   }
   stream << ";";
@@ -87,9 +89,15 @@ TEST(PartialTransitionTests, From) {
 TEST(PartialTransitionTests, To) {
   const auto t = To(State::off);
   EXPECT_EQ(State::off, t.target);
+  EXPECT_FALSE(decltype(t)::HasEvent());
+  EXPECT_FALSE(decltype(t)::HasGuard());
+  EXPECT_FALSE(decltype(t)::HasAction());
 
   const auto tModified = t.To(State::on);
   EXPECT_EQ(State::on, tModified.target);
+  EXPECT_FALSE(decltype(t)::HasEvent());
+  EXPECT_FALSE(decltype(t)::HasGuard());
+  EXPECT_FALSE(decltype(t)::HasAction());
 
   const auto fpModified = fullyPopulated.To(State::off);
   EXPECT_NE(fullyPopulated, fpModified);
@@ -106,9 +114,15 @@ TEST(PartialTransitionTests, To) {
 TEST(PartialTransitionTests, On) {
   const auto t = On(Event::turnOn);
   EXPECT_EQ(Event::turnOn, t.event);
+  EXPECT_FALSE(t.HasState());
+  EXPECT_FALSE(t.HasGuard());
+  EXPECT_FALSE(t.HasAction());
 
   const auto tModified = t.On(Event::turnOff);
   EXPECT_EQ(Event::turnOff, tModified.event);
+  EXPECT_FALSE(t.HasState());
+  EXPECT_FALSE(t.HasGuard());
+  EXPECT_FALSE(t.HasAction());
 
   const auto fpModified = fullyPopulated.On(Event::turnOff);
   EXPECT_NE(fullyPopulated, fpModified);
@@ -138,7 +152,7 @@ TEST(PartialTransitionTests, If) {
   EXPECT_EQ(fullyPopulated.target, fpNoGuard.target);
   EXPECT_EQ(fullyPopulated.event, fpNoGuard.event);
   EXPECT_EQ(fullyPopulated.action, fpNoGuard.action);
-  EXPECT_FALSE(fpNoGuard.hasGuard());
+  EXPECT_FALSE(fpNoGuard.HasGuard());
 
   const auto fpModified = fpNoGuard.If(guardModified);
   EXPECT_NE(fullyPopulated, fpModified);
@@ -164,7 +178,7 @@ TEST(PartialTransitionTests, Do) {
   EXPECT_EQ(actionModified, tModified.action);
 
   const auto fpNoAction = fullyPopulated.Do();
-  EXPECT_FALSE(fpNoAction.hasAction());
+  EXPECT_FALSE(fpNoAction.HasAction());
   EXPECT_NE(fullyPopulated, fpNoAction);
   EXPECT_EQ(fullyPopulated.source, fpNoAction.source);
   EXPECT_EQ(fullyPopulated.target, fpNoAction.target);
@@ -240,25 +254,31 @@ TEST(PartialTransitionTests, makeFullyPopulated) {
 
 TEST(PartialTransitionTests, makeWithoutGuardsOrActions) {
   const auto partial = From(State::off).To(State::on).On(Event::turnOn);
+
+  ASSERT_FALSE(partial.HasGuard());
+  ASSERT_FALSE(partial.HasAction());
+
   const auto t = partial.make();
 
   EXPECT_EQ(partial.source, t.source);
   EXPECT_EQ(partial.target, t.target);
   EXPECT_EQ(partial.event, t.event);
-
-  ASSERT_FALSE(partial.hasGuard());
-  ASSERT_FALSE(partial.hasAction());
+  EXPECT_FALSE(t.HasGuard());
+  EXPECT_FALSE(t.HasAction());
 }
 
 TEST(PartialTransitionTests, makeWithoutGuards) {
   const auto p = From(State::off).To(State::on).On(Event::turnOn).Do(actionA);
-  const auto t = p.make();
-  ASSERT_TRUE(p.hasAction());
+  ASSERT_TRUE(p.HasAction());
+  ASSERT_FALSE(p.HasGuard());
   ASSERT_EQ(State::off, p.source);
   ASSERT_EQ(State::on, p.target);
   ASSERT_EQ(Event::turnOn, p.event);
   ASSERT_EQ(actionA, p.action);
-  ASSERT_FALSE(p.hasGuard());
+
+  const auto t = p.make();
+  EXPECT_TRUE(t.HasAction());
+  EXPECT_FALSE(t.HasGuard());
 
   EXPECT_EQ(State::off, t.source);
   EXPECT_EQ(State::on, t.target);
@@ -269,17 +289,20 @@ TEST(PartialTransitionTests, makeWithoutGuards) {
 TEST(PartialTransitionTests, makeWithoutActions) {
   const auto p =
       From(State::off).To(State::on).On(Event::turnOn).If(guardFalse);
-  const auto t = p.make();
+  ASSERT_FALSE(p.HasAction());
+  ASSERT_TRUE(p.HasGuard());
   ASSERT_EQ(State::off, p.source);
   ASSERT_EQ(State::on, p.target);
   ASSERT_EQ(Event::turnOn, p.event);
   ASSERT_EQ(guardFalse, p.guard);
-  ASSERT_FALSE(p.hasAction());
 
-  ASSERT_EQ(State::off, t.source);
-  ASSERT_EQ(State::on, t.target);
-  ASSERT_EQ(Event::turnOn, t.event);
-  ASSERT_EQ(guardFalse, t.guard);
+  const auto t = p.make();
+  EXPECT_FALSE(t.HasAction());
+  EXPECT_TRUE(t.HasGuard());
+  EXPECT_EQ(State::off, t.source);
+  EXPECT_EQ(State::on, t.target);
+  EXPECT_EQ(Event::turnOn, t.event);
+  EXPECT_EQ(guardFalse, t.guard);
 }
 
 int main(int argc, char **argv) {

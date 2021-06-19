@@ -118,19 +118,17 @@ TEST(TransitionTests, basicWithAction) {
   EXPECT_TRUE(val);
 }
 
-TEST(StateMachineTests, basicTransition) {
+TEST(StateMachineTests, basicOnOff) {
   enum class State { on, off };
   enum class Event { turnOn, turnOff };
 
-  using Transition = susml::Transition<State, Event, bool (*)(), void (*)()>;
+  using Transition = susml::Transition<State, Event>;
   using StateMachine =
       susml::tuplebased::StateMachine<State, Event,
                                       std::tuple<Transition, Transition>>;
 
-  Transition onToOff{State::on, State::off, Event::turnOff, [] { return true; },
-                     [] {}};
-  Transition offToOn{State::off, State::on, Event::turnOn, [] { return true; },
-                     [] {}};
+  Transition onToOff{State::on, State::off, Event::turnOff};
+  Transition offToOn{State::off, State::on, Event::turnOn};
 
   StateMachine m{State::off, std::make_tuple(offToOn, onToOff)};
 
@@ -217,43 +215,34 @@ enum class State {
 enum class Event { updateA, updateB };
 
 auto makeStateMachine(int &delta) {
-  auto NoGuard = [] { return true; };
-  auto NoAction = [] {};
+  auto None = susml::NoneType{};
 
   auto transitions = std::make_tuple(
-      Transition(State::idle, State::clockwise1, Event::updateB, NoGuard,
-                 NoAction),
-      Transition(State::clockwise1, State::idle, Event::updateB, NoGuard,
-                 NoAction),
-      Transition(State::clockwise1, State::clockwise2, Event::updateA, NoGuard,
-                 NoAction),
-      Transition(State::clockwise2, State::clockwise1, Event::updateA, NoGuard,
-                 NoAction),
-      Transition(State::clockwise2, State::clockwise3, Event::updateB, NoGuard,
-                 NoAction),
-      Transition(State::clockwise3, State::clockwise2, Event::updateB, NoGuard,
-                 NoAction),
-      Transition(State::clockwise3, State::idle, Event::updateA, NoGuard,
+      Transition(State::idle, State::clockwise1, Event::updateB),
+      Transition(State::clockwise1, State::idle, Event::updateB),
+      Transition(State::clockwise1, State::clockwise2, Event::updateA),
+      Transition(State::clockwise2, State::clockwise1, Event::updateA),
+      Transition(State::clockwise2, State::clockwise3, Event::updateB),
+      Transition(State::clockwise3, State::clockwise2, Event::updateB),
+      Transition(State::clockwise3, State::idle, Event::updateA, None,
                  [&] { delta++; }),
-      Transition(State::idle, State::counterclockwise1, Event::updateA, NoGuard,
-                 NoAction),
-      Transition(State::counterclockwise1, State::idle, Event::updateA, NoGuard,
-                 NoAction),
+      Transition(State::idle, State::counterclockwise1, Event::updateA),
+      Transition(State::counterclockwise1, State::idle, Event::updateA),
       Transition(State::counterclockwise1, State::counterclockwise2,
-                 Event::updateB, NoGuard, NoAction),
+                 Event::updateB),
       Transition(State::counterclockwise2, State::counterclockwise1,
-                 Event::updateB, NoGuard, NoAction),
+                 Event::updateB),
       Transition(State::counterclockwise2, State::counterclockwise3,
-                 Event::updateA, NoGuard, NoAction),
+                 Event::updateA),
       Transition(State::counterclockwise3, State::counterclockwise2,
-                 Event::updateA, NoGuard, NoAction),
-      Transition(State::counterclockwise3, State::idle, Event::updateB, NoGuard,
+                 Event::updateA),
+      Transition(State::counterclockwise3, State::idle, Event::updateB, None,
                  [&] { delta--; }));
 
   return susml::tuplebased::StateMachine<State, Event, decltype(transitions)>(
       State::idle, transitions);
 }
-}
+} // namespace EncoderEventBased
 
 TEST(EncoderEventBasedTests, fullClockWise) {
   using namespace EncoderEventBased;
@@ -342,41 +331,35 @@ auto makeStateMachine(int &delta, bool &a, bool &b) {
     return
         [&a, &b, desiredA, desiredB] { return a == desiredA && b == desiredB; };
   };
-  auto NoAction = [&] {};
 
   auto transitions = std::make_tuple(
       Transition(State::idle, // false false
-                 State::clockwise1, Event::update, And(false, true), NoAction),
+                 State::clockwise1, Event::update, And(false, true)),
       Transition(State::clockwise1, // false true
-                 State::idle, Event::update, And(false, false), NoAction),
+                 State::idle, Event::update, And(false, false)),
       Transition(State::clockwise1, // false true
-                 State::clockwise2, Event::update, And(true, true), NoAction),
+                 State::clockwise2, Event::update, And(true, true)),
       Transition(State::clockwise2, // true true
-                 State::clockwise1, Event::update, And(false, true), NoAction),
+                 State::clockwise1, Event::update, And(false, true)),
       Transition(State::clockwise2, // true true
-                 State::clockwise3, Event::update, And(true, false), NoAction),
+                 State::clockwise3, Event::update, And(true, false)),
       Transition(State::clockwise3, // true false
-                 State::clockwise2, Event::update, And(true, true), NoAction),
+                 State::clockwise2, Event::update, And(true, true)),
       Transition(State::clockwise3, // true false
                  State::idle, Event::update, And(false, false),
                  [&] { delta++; }),
       Transition(State::idle, // false false
-                 State::counterclockwise1, Event::update, And(true, false),
-                 NoAction),
+                 State::counterclockwise1, Event::update, And(true, false)),
       Transition(State::counterclockwise1, // true false
-                 State::idle, Event::update, And(false, false), NoAction),
+                 State::idle, Event::update, And(false, false)),
       Transition(State::counterclockwise1, // true false
-                 State::counterclockwise2, Event::update, And(true, true),
-                 NoAction),
+                 State::counterclockwise2, Event::update, And(true, true)),
       Transition(State::counterclockwise2, // true true
-                 State::counterclockwise1, Event::update, And(true, false),
-                 NoAction),
+                 State::counterclockwise1, Event::update, And(true, false)),
       Transition(State::counterclockwise2, // true true
-                 State::counterclockwise3, Event::update, And(false, true),
-                 NoAction),
+                 State::counterclockwise3, Event::update, And(false, true)),
       Transition(State::counterclockwise3, // false true
-                 State::counterclockwise2, Event::update, And(true, true),
-                 NoAction),
+                 State::counterclockwise2, Event::update, And(true, true)),
       Transition(State::counterclockwise3, // false true
                  State::idle, Event::update, And(false, false),
                  [&] { delta--; }));

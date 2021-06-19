@@ -18,11 +18,6 @@
 #include <type_traits>
 
 namespace susml::factory {
-struct NoneType {
-  constexpr bool operator==(const NoneType &) const { return true; }
-  constexpr bool operator!=(const NoneType &) const { return false; }
-};
-
 template <typename StateT = NoneType, typename EventT = NoneType,
           typename GuardT = NoneType, typename ActionT = NoneType>
 struct PartialTransition {
@@ -31,14 +26,10 @@ struct PartialTransition {
   using Guard = GuardT;
   using Action = ActionT;
 
-  static constexpr bool hasGuard() {
-    return !(std::is_same<Guard, NoneType>::value ||
-             std::is_same<Guard, const NoneType>::value);
-  }
-  static constexpr bool hasAction() {
-    return !(std::is_same<Action, NoneType>::value ||
-             std::is_same<Action, const NoneType>::value);
-  }
+  static constexpr bool HasState() { return !isNoneType<State>(); }
+  static constexpr bool HasEvent() { return !isNoneType<Event>(); }
+  static constexpr bool HasGuard() { return !isNoneType<Guard>(); }
+  static constexpr bool HasAction() { return !isNoneType<Action>(); }
 
   State source;
   State target;
@@ -88,14 +79,11 @@ struct PartialTransition {
   constexpr auto Do() const { return Do<NoneType>({}); }
 
   constexpr auto make() const {
-    if constexpr (!hasGuard()) {
-      return this->If([] { return true; }).make();
-    } else if constexpr (!hasAction()) {
-      return this->Do([] {}).make();
-    } else if constexpr (hasGuard() && hasAction()) {
-      return Transition<State, Event, Guard, Action>{source, target, event,
-                                                     guard, action};
-    }
+    static_assert(
+        HasState() && HasEvent(),
+        "Transition must have at least State and Event types defined");
+    return Transition<State, Event, Guard, Action>{source, target, event, guard,
+                                                   action};
   }
 
   template <typename... Types>
@@ -118,12 +106,12 @@ struct PartialTransition {
 template <typename State>
 constexpr PartialTransition<State> From(State source) {
   // start as a self-loop, as we need to fill in something for the target state
-  return {source, source, {},{},{}};
+  return {source, source, {}, {}, {}};
 }
 
 template <typename State> constexpr PartialTransition<State> To(State target) {
   // start as a self-loop, as we need to fill in something for the source state
-  return {target, target, {},{},{}};
+  return {target, target, {}, {}, {}};
 }
 
 template <typename Event>

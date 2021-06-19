@@ -101,8 +101,13 @@ struct StateMachine {
   template <typename Transition>
   constexpr bool isTakeableTransition(const Transition &transition,
                                       const Event &event) {
-    return currentState == transition.source && event == transition.event &&
-           transition.guard();
+    if constexpr (Transition::HasGuard()) {
+      return currentState == transition.source && event == transition.event &&
+             transition.guard();
+    }
+    if constexpr (!Transition::HasGuard()) {
+      return currentState == transition.source && event == transition.event;
+    }
   }
 
   template <typename Transition>
@@ -111,7 +116,9 @@ struct StateMachine {
 
     const bool isTakeable = isTakeableTransition(transition, event);
     if (isTakeable) {
-      transition.action();
+      if constexpr (Transition::HasAction()) {
+        transition.action();
+      }
       currentState = transition.target;
       return true;
     }

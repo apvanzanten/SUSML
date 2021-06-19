@@ -24,7 +24,7 @@ constexpr auto makeTransition(std::size_t &counter) {
 
   if constexpr (!WithGuard) {
     return Transition(
-        source, target, true, [] { return true; }, [&] { counter += Index; });
+        source, target, true, susml::NoneType{}, [&] { counter += Index; });
   } else if constexpr (WithGuard) {
     return Transition(
         source, target, true, [&] { return ((counter++ & 1) == 0); },
