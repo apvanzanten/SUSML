@@ -15,10 +15,10 @@
 #define SUSML_HPP
 
 #include "Transition.hpp"
-#include "minimal/StateMachine.hpp"
+#include "vectorbased.hpp"
 
 namespace susml {
-  using namespace minimal;
+  using namespace vectorbased;
 }
 
 #endif

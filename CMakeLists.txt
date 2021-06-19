@@ -53,7 +53,7 @@ endfunction()
 
 
 AddTest(testFactory factory.test.cpp)
-AddTest(testMinimal minimal.test.cpp)
+AddTest(testVectorBased vectorbased.test.cpp)
 AddTest(testTupleBased tuplebased.test.cpp)
 
 AddBenchmark(benchCircleUpTo32 circleUpTo32.bench.cpp)

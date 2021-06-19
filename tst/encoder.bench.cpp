@@ -3,8 +3,8 @@
 #include <stdexcept>
 
 #include "factory.hpp"
-#include "minimal/StateMachine.hpp"
 #include "tuplebased.hpp"
+#include "vectorbased.hpp"
 
 namespace eventBased {
 enum class State {
@@ -19,11 +19,11 @@ enum class State {
 
 enum class Event { updateA, updateB };
 
-namespace minimal {
+namespace vectorbased {
 
 auto makeStateMachine(int &delta) {
   using namespace susml::factory;
-  using susml::minimal::StateMachine;
+  using susml::vectorbased::StateMachine;
 
   auto Fn = [](auto e) { return std::function(e); };
   auto NoAction = Fn([] {});
@@ -99,11 +99,11 @@ auto makeStateMachine(int &delta) {
                                  .Do(Fn([&] { delta--; }))
                                  .make()};
 
-  return StateMachine<decltype(transitions)::value_type, decltype(transitions)>{
-      transitions, State::idle};
+  return StateMachine<decltype(transitions)::value_type>{State::idle,
+                                                         transitions};
 }
 
-static void encoderMEventBased(benchmark::State &s) {
+static void encoderVBEventBased(benchmark::State &s) {
   int delta = 0;
   auto m = makeStateMachine(delta);
 
@@ -131,7 +131,7 @@ static void encoderMEventBased(benchmark::State &s) {
   s.counters["d"] = delta;
 }
 
-} // namespace minimal
+} // namespace vectorbased
 
 namespace tuplebased {
 using susml::Transition;
@@ -222,11 +222,11 @@ struct Update {
   bool newB = false;
 };
 
-namespace minimal {
+namespace vectorbased {
 
 auto makeStateMachine(int &delta, const bool &a, const bool &b) {
   using namespace susml::factory;
-  using susml::minimal::StateMachine;
+  using susml::vectorbased::StateMachine;
 
   auto Fn = [](auto e) { return std::function(e); };
   auto And = [&](bool desiredA, bool desiredB) {
@@ -319,11 +319,11 @@ auto makeStateMachine(int &delta, const bool &a, const bool &b) {
                                  .Do(Fn([&] { delta--; }))
                                  .make()};
 
-  return StateMachine<decltype(transitions)::value_type, decltype(transitions)>{
-      transitions, State::idle};
+  return StateMachine<decltype(transitions)::value_type>{State::idle,
+                                                         transitions};
 }
 
-static void encoderMGuardBased(benchmark::State &s) {
+static void encoderVBGuardBased(benchmark::State &s) {
   int delta = 0;
   bool a = false;
   bool b = false;
@@ -368,7 +368,7 @@ static void encoderMGuardBased(benchmark::State &s) {
   s.counters["d"] = delta;
 }
 
-} // namespace minimal
+} // namespace vectorbased
 
 namespace tuplebased {
 using susml::Transition;
@@ -469,10 +469,10 @@ static void encoderTBGuardBased(benchmark::State &s) {
 } // namespace tuplebased
 } // namespace guardBased
 
-using eventBased::minimal::encoderMEventBased;
 using eventBased::tuplebased::encoderTBEventBased;
-using guardBased::minimal::encoderMGuardBased;
+using eventBased::vectorbased::encoderVBEventBased;
 using guardBased::tuplebased::encoderTBGuardBased;
+using guardBased::vectorbased::encoderVBGuardBased;
 
 constexpr auto numTriggersLowerBound = (1 << 15);
 constexpr auto numTriggersUpperBound = (1 << 20);
@@ -482,7 +482,7 @@ BENCHMARK(encoderTBGuardBased)
     ->Range(numTriggersLowerBound, numTriggersUpperBound)
     ->Unit(benchmark::kMicrosecond);
 
-BENCHMARK(encoderMGuardBased)
+BENCHMARK(encoderVBGuardBased)
     ->RangeMultiplier(2)
     ->Range(numTriggersLowerBound, numTriggersUpperBound)
     ->Unit(benchmark::kMicrosecond);
@@ -492,7 +492,7 @@ BENCHMARK(encoderTBEventBased)
     ->Range(numTriggersLowerBound, numTriggersUpperBound)
     ->Unit(benchmark::kMicrosecond);
 
-BENCHMARK(encoderMEventBased)
+BENCHMARK(encoderVBEventBased)
     ->RangeMultiplier(2)
     ->Range(numTriggersLowerBound, numTriggersUpperBound)
     ->Unit(benchmark::kMicrosecond);

@@ -11,26 +11,20 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with SUSML. If not, see <https://www.gnu.org/licenses/>.
 
-#ifndef MINIMAL_STATEMACHINE_HPP
-#define MINIMAL_STATEMACHINE_HPP
+#ifndef VECTORBASED_HPP
+#define VECTORBASED_HPP
 
 #include "Transition.hpp"
-#include <type_traits>
+#include <vector>
 
-namespace susml::minimal {
-template <typename TransitionT, typename TransitionContainerT>
-struct StateMachine {
+namespace susml::vectorbased {
+template <typename TransitionT> struct StateMachine {
   using Transition = TransitionT;
   using State = typename Transition::State;
   using Event = typename Transition::Event;
-  using TransitionContainer = TransitionContainerT;
 
-  static_assert(
-      std::is_same<Transition, typename TransitionContainer::value_type>::value,
-      "TransitionContainer should be Container of Transition");
-
-  TransitionContainer transitions;
   State currentState;
+  std::vector<Transition> transitions;
 
   constexpr void trigger(const Event &event) {
     for (auto &t : transitions) {
@@ -42,6 +36,6 @@ struct StateMachine {
     }
   }
 };
-} // namespace susml::minimal
+} // namespace susml::vectorbased
 
 #endif

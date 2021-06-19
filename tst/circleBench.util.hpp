@@ -5,8 +5,8 @@
 
 #include "Transition.hpp"
 #include "factory.hpp"
-#include "minimal/StateMachine.hpp"
 #include "tuplebased.hpp"
+#include "vectorbased.hpp"
 
 namespace util {
 
@@ -51,7 +51,7 @@ constexpr auto makeStateMachine(std::size_t &counter) {
 
 } // namespace tuplebased
 
-namespace minimal {
+namespace vectorbased {
 using namespace susml::factory;
 
 template <std::size_t Index, std::size_t TotalTransitions,
@@ -81,16 +81,16 @@ constexpr auto makeTransitions(const std::index_sequence<Indices...> &,
 
 template <std::size_t NumTransitions, bool WithGuards = false>
 constexpr auto makeStateMachine(std::size_t &counter) {
-  std::vector transitions = util::minimal::makeTransitions<WithGuards>(
+  std::vector transitions = util::vectorbased::makeTransitions<WithGuards>(
       std::make_index_sequence<NumTransitions>(), counter);
 
   using TransitionContainer = decltype(transitions);
   using Transition = typename TransitionContainer::value_type;
 
-  return susml::minimal::StateMachine<Transition, TransitionContainer>{
-      transitions, 0};
+  return susml::vectorbased::StateMachine<Transition>{0,
+      transitions};
 }
-} // namespace minimal
+} // namespace vectorbased
 
 template <typename StateMachine>
 static void runTest(benchmark::State &s, StateMachine &machine,
@@ -113,11 +113,11 @@ static void circleTupleBased(benchmark::State &s) {
 }
 
 template <std::size_t NumTransitions, util::HasGuards hasGuards>
-static void circleMinimal(benchmark::State &s) {
+static void circleVectorBased(benchmark::State &s) {
   std::size_t counter = 0;
-  auto m =
-      minimal::makeStateMachine<NumTransitions,
-                                (hasGuards == util::HasGuards::yes)>(counter);
+  auto m = vectorbased::makeStateMachine<NumTransitions,
+                                         (hasGuards == util::HasGuards::yes)>(
+      counter);
   runTest(s, m, counter);
 }
 
@@ -126,11 +126,11 @@ static void circleMinimal(benchmark::State &s) {
 #define BENCH_CIRCLE(NumTransitions, HasGuards)                                \
   namespace {                                                                  \
   using util::circleTupleBased;                                                \
-  using util::circleMinimal;                                                   \
+  using util::circleVectorBased;                                               \
   BENCHMARK_TEMPLATE(circleTupleBased, NumTransitions, HasGuards)              \
       ->Arg(100000)                                                            \
       ->Unit(benchmark::kMicrosecond);                                         \
-  BENCHMARK_TEMPLATE(circleMinimal, NumTransitions, HasGuards)                 \
+  BENCHMARK_TEMPLATE(circleVectorBased, NumTransitions, HasGuards)             \
       ->Arg(100000)                                                            \
       ->Unit(benchmark::kMicrosecond);                                         \
   }

@@ -15,7 +15,7 @@
 
 #include "Transition.hpp"
 #include "factory.hpp"
-#include "minimal/StateMachine.hpp"
+#include "vectorbased.hpp"
 
 #include <array>
 #include <functional>
@@ -44,11 +44,11 @@ using Guard = std::function<bool()>;
 using Action = std::function<void()>;
 
 using Transition = susml::Transition<State, Event, Guard, Action>;
-using StateMachine =
-    susml::minimal::StateMachine<Transition, std::vector<Transition>>;
+using StateMachine = susml::vectorbased::StateMachine<Transition>;
 
 auto createBasicMachine() {
   return StateMachine{
+      INITIAL_STATE,
       {{
            State::off,         // transition from state off
            State::on,          // transition to state on
@@ -73,8 +73,7 @@ auto createBasicMachine() {
            Event::turnOn,        // transition in response to turnOn event
            [] { return true; },  // transition always
            Actions::countAction, // on transition, call countAction
-       }},
-      INITIAL_STATE};
+       }}};
 }
 
 TEST(BasicTest, GoodWeather) {
@@ -120,46 +119,45 @@ TEST(CompositeTests, controllerAndSubsystem) {
     enum class ControllerEvent { turnOn, turnOff };
     using ControllerTransition =
         susml::Transition<ControllerState, ControllerEvent, Guard, Action>;
-    using Controller =
-        susml::minimal::StateMachine<ControllerTransition,
-                                     std::vector<ControllerTransition>>;
+    using Controller = susml::vectorbased::StateMachine<ControllerTransition>;
 
     enum class SubsystemState { off, idle, running };
     enum class SubsystemEvent { turnOn, run, finish, turnOff };
     using SubsystemTransition =
         susml::Transition<SubsystemState, SubsystemEvent, Guard, Action>;
-    using Subsystem =
-        susml::minimal::StateMachine<SubsystemTransition,
-                                     std::vector<SubsystemTransition>>;
+    using Subsystem = susml::vectorbased::StateMachine<SubsystemTransition>;
 
     // forward declaration to allow references to eachother
-    Subsystem subsys{{From(SubsystemState::off)
-                          .To(SubsystemState::idle)
-                          .On(SubsystemEvent::turnOn)
-                          .If(NoGuard)
-                          .Do(NoAction)
-                          .make(),
-                      From(SubsystemState::idle)
-                          .To(SubsystemState::running)
-                          .On(SubsystemEvent::run)
-                          .If(NoGuard)
-                          .Do(NoAction)
-                          .make(),
-                      From(SubsystemState::running)
-                          .To(SubsystemState::idle)
-                          .On(SubsystemEvent::finish)
-                          .If(NoGuard)
-                          .Do(NoAction)
-                          .make(),
-                      From(SubsystemState::idle)
-                          .To(SubsystemState::off)
-                          .On(SubsystemEvent::turnOff)
-                          .If(NoGuard)
-                          .Do(NoAction)
-                          .make()},
-                     SubsystemState::off};
+    Subsystem subsys{
+        SubsystemState::off,
+        {From(SubsystemState::off)
+             .To(SubsystemState::idle)
+             .On(SubsystemEvent::turnOn)
+             .If(NoGuard)
+             .Do(NoAction)
+             .make(),
+         From(SubsystemState::idle)
+             .To(SubsystemState::running)
+             .On(SubsystemEvent::run)
+             .If(NoGuard)
+             .Do(NoAction)
+             .make(),
+         From(SubsystemState::running)
+             .To(SubsystemState::idle)
+             .On(SubsystemEvent::finish)
+             .If(NoGuard)
+             .Do(NoAction)
+             .make(),
+         From(SubsystemState::idle)
+             .To(SubsystemState::off)
+             .On(SubsystemEvent::turnOff)
+             .If(NoGuard)
+             .Do(NoAction)
+             .make()}
+    };
 
     Controller ctrl{
+        ControllerState::off,
         {From(ControllerState::off)
              .To(ControllerState::on)
              .On(ControllerEvent::turnOn)
@@ -173,8 +171,7 @@ TEST(CompositeTests, controllerAndSubsystem) {
                  [&] { return subsys.currentState == SubsystemState::idle; }))
              .Do(std::function(
                  [&] { subsys.trigger(SubsystemEvent::turnOff); }))
-             .make()},
-        ControllerState::off};
+             .make()}};
   } system;
 
   using CtrlState = System::ControllerState;
