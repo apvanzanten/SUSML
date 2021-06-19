@@ -98,7 +98,7 @@ TEST(TransitionTests, basicWithGuard) {
 
   auto t = Transition{0, 0, 0, // 0 integers because we don't really care about
                                // states and events for this test
-                      getVal, []{}};
+                      getVal, [] {}};
 
   EXPECT_FALSE(t.guard()) << "should return false because val is false";
 
@@ -128,29 +128,31 @@ TEST(StateMachineTests, basicTransition) {
   enum class State { on, off };
   enum class Event { turnOn, turnOff };
 
-  using Transition = susml::Transition<State, Event, bool(*)(), void(*)()>;
+  using Transition = susml::Transition<State, Event, bool (*)(), void (*)()>;
   using StateMachine =
       susml::tuplebased::StateMachine<State, Event,
                                       std::tuple<Transition, Transition>>;
 
-  Transition onToOff{State::on, State::off, Event::turnOff, []{return true; }, []{}};
-  Transition offToOn{State::off, State::on, Event::turnOn, []{return true; }, []{}};
+  Transition onToOff{State::on, State::off, Event::turnOff, [] { return true; },
+                     [] {}};
+  Transition offToOn{State::off, State::on, Event::turnOn, [] { return true; },
+                     [] {}};
 
-  StateMachine m{std::make_tuple(offToOn, onToOff), State::off};
+  StateMachine m{State::off, std::make_tuple(offToOn, onToOff)};
 
-  ASSERT_EQ(State::off, m.currentState());
+  ASSERT_EQ(State::off, m.currentState);
 
   m.trigger(Event::turnOff); // already off, state won't change
-  EXPECT_EQ(State::off, m.currentState());
+  EXPECT_EQ(State::off, m.currentState);
 
   m.trigger(Event::turnOn);
-  EXPECT_EQ(State::on, m.currentState());
+  EXPECT_EQ(State::on, m.currentState);
 
   m.trigger(Event::turnOn); // already on, state won't change
-  EXPECT_EQ(State::on, m.currentState());
+  EXPECT_EQ(State::on, m.currentState);
 
   m.trigger(Event::turnOff);
-  EXPECT_EQ(State::off, m.currentState());
+  EXPECT_EQ(State::off, m.currentState);
 }
 
 TEST(StateMachineTests, transitionWithGaurdAndActions) {
@@ -164,9 +166,9 @@ TEST(StateMachineTests, transitionWithGaurdAndActions) {
 
   std::vector<std::string> reports;
 
-  Transition offToOn{
-      State::off, State::on, Event::turnOn, [&] { return readyForOn; },
-      [&] { reports.push_back("turnOn"); }};
+  Transition offToOn{State::off, State::on, Event::turnOn,
+                     [&] { return readyForOn; },
+                     [&] { reports.push_back("turnOn"); }};
   Transition onToOff(
       State::on, State::off, Event::turnOff, [&] { return readyForOff; },
       [&] { reports.push_back("turnOff"); });
@@ -176,40 +178,40 @@ TEST(StateMachineTests, transitionWithGaurdAndActions) {
   using StateMachine =
       susml::tuplebased::StateMachine<State, Event, decltype(transitions)>;
 
-  StateMachine m{transitions, State::off};
+  StateMachine m{State::off, transitions};
 
   ASSERT_FALSE(readyForOn);
   ASSERT_FALSE(readyForOff);
-  ASSERT_EQ(State::off, m.currentState());
+  ASSERT_EQ(State::off, m.currentState);
 
   m.trigger(Event::turnOff); // wrong event
-  EXPECT_EQ(State::off, m.currentState());
+  EXPECT_EQ(State::off, m.currentState);
 
   m.trigger(Event::turnOn); // right event, but readyForOn is false
-  EXPECT_EQ(State::off, m.currentState());
+  EXPECT_EQ(State::off, m.currentState);
 
   readyForOn = true;
 
   m.trigger(Event::turnOn); // right event and readyForOn is true
-  EXPECT_EQ(State::on, m.currentState());
+  EXPECT_EQ(State::on, m.currentState);
   EXPECT_EQ(1, reports.size());
   EXPECT_EQ("turnOn", reports.back());
 
   m.trigger(Event::turnOff); // right event but readyForOff is false
-  EXPECT_EQ(State::on, m.currentState());
+  EXPECT_EQ(State::on, m.currentState);
   EXPECT_EQ(1, reports.size());
 
   readyForOff = true;
 
   m.trigger(Event::turnOff); // right event and readyForOff is true
-  EXPECT_EQ(State::off, m.currentState());
+  EXPECT_EQ(State::off, m.currentState);
   EXPECT_EQ(2, reports.size());
   EXPECT_EQ("turnOff", reports.back());
 }
 
 namespace encoder {
-using susml::tuplebased::StateMachine;
 using susml::Transition;
+using susml::tuplebased::StateMachine;
 
 enum class State {
   idle,
@@ -273,8 +275,8 @@ auto makeStateMachine(int &delta, bool &a, bool &b) {
                  State::idle, Event::update, And(false, false),
                  [&] { delta--; }));
 
-  return StateMachine<State, Event, decltype(transitions)>(transitions,
-                                                           State::idle);
+  return StateMachine<State, Event, decltype(transitions)>(State::idle,
+                                                           transitions);
 }
 
 struct Fixture : public ::testing::Test {
@@ -311,7 +313,7 @@ TEST_F(EncoderTestFixture, fullClockWise) {
           Update{false, false}    // idle
   );
 
-  EXPECT_EQ(State::idle, m.currentState());
+  EXPECT_EQ(State::idle, m.currentState);
   EXPECT_EQ(1, delta);
 }
 
@@ -327,7 +329,7 @@ TEST_F(EncoderTestFixture, fullCounterClockwise) {
           Update{false, false}    // idle
   );
 
-  EXPECT_EQ(State::idle, m.currentState());
+  EXPECT_EQ(State::idle, m.currentState);
   EXPECT_EQ(-1, delta);
 }
 
@@ -345,7 +347,7 @@ TEST_F(EncoderTestFixture, halfwayClockwise) {
           Update{false, false}    // idle
   );
 
-  EXPECT_EQ(State::idle, m.currentState());
+  EXPECT_EQ(State::idle, m.currentState);
   EXPECT_EQ(0, delta);
 }
 TEST_F(EncoderTestFixture, halfwayCounterClockwise) {
@@ -362,7 +364,7 @@ TEST_F(EncoderTestFixture, halfwayCounterClockwise) {
           Update{false, false}    // idle
   );
 
-  EXPECT_EQ(State::idle, m.currentState());
+  EXPECT_EQ(State::idle, m.currentState);
   EXPECT_EQ(0, delta);
 }
 

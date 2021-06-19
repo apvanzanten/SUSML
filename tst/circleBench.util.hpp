@@ -47,7 +47,7 @@ constexpr auto makeStateMachine(std::size_t &counter) {
       std::make_index_sequence<NumTransitions>(), counter);
 
   return susml::tuplebased::StateMachine<std::size_t, bool, decltype(tuple)>(
-      tuple, 0);
+      0, tuple);
 }
 
 } // namespace tuplebased
@@ -100,7 +100,10 @@ constexpr auto makeStateMachineImpl(const std::index_sequence<Indices...> &,
                                     std::size_t &counter) {
   constexpr auto totalTransitions = sizeof...(Indices);
   return susml::dataoriented::fromTransitions(
-      std::size_t(0), std::vector{minimal::makeTransition<Indices, totalTransitions, WithGuards>(counter)...});
+      std::size_t(0),
+      std::vector{
+          minimal::makeTransition<Indices, totalTransitions, WithGuards>(
+              counter)...});
 }
 
 template <std::size_t NumTransitions, bool WithGuards = false>

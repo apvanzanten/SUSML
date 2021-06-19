@@ -75,8 +75,7 @@ constexpr bool isValidTransitionTupleType() {
 } // namespace validate
 
 template <typename StateT, typename EventT, typename TransitionsT>
-class StateMachine {
-public:
+struct StateMachine {
   using TransitionTuple = TransitionsT;
   using State = StateT;
   using Event = EventT;
@@ -86,9 +85,12 @@ public:
       "StateMachine needs at least one transition, and all "
       "transitions must have the correct State type and Event type.");
 
-  constexpr StateMachine(const TransitionTuple &transitions,
-                         const State &initialState)
-      : mTransitions(transitions), mCurrentState(initialState) {}
+  State currentState;
+  TransitionTuple transitions;
+
+  constexpr StateMachine(const State &initialState,
+                         const TransitionTuple &transitions)
+      : currentState(initialState), transitions(transitions) {}
 
   constexpr void trigger(const Event &event) {
     constexpr std::size_t numTransitions =
@@ -96,18 +98,11 @@ public:
     triggerImpl(event, std::make_index_sequence<numTransitions>());
   }
 
-  constexpr const TransitionTuple &transitions() const { return mTransitions; }
-  constexpr const State &currentState() const { return mCurrentState; }
-  constexpr void setState(State newState) { mCurrentState = newState; }
-
-private:
-  TransitionTuple mTransitions;
-  State mCurrentState;
-
+  // helper functions
   template <typename Transition>
   constexpr bool isTakeableTransition(const Transition &transition,
                                       const Event &event) {
-    return mCurrentState == transition.source && event == transition.event &&
+    return currentState == transition.source && event == transition.event &&
            transition.guard();
   }
 
@@ -118,7 +113,7 @@ private:
     const bool isTakeable = isTakeableTransition(transition, event);
     if (isTakeable) {
       transition.action();
-      mCurrentState = transition.target;
+      currentState = transition.target;
       return true;
     }
     return false;
@@ -127,8 +122,7 @@ private:
   template <std::size_t... Indices>
   constexpr bool triggerImpl(const Event &event,
                              const std::index_sequence<Indices...> &) {
-    return (... ||
-            takeTransitionIfAble(std::get<Indices>(mTransitions), event));
+    return (... || takeTransitionIfAble(std::get<Indices>(transitions), event));
   }
 };
 

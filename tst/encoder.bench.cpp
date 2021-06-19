@@ -172,78 +172,12 @@ auto makeStateMachine(int &delta) {
                  [&] { delta--; }));
 
   return susml::tuplebased::StateMachine<State, Event, decltype(transitions)>(
-      transitions, State::idle);
-}
-
-template <typename... Args>
-void testMachine(susml::tuplebased::StateMachine<Args...> &m, int &delta) {
-  const int deltaStart = delta;
-  const State currentStateStart = m.currentState();
-
-  delta = 0;
-  m.setState(State::idle);
-
-  auto trigger = [&](auto... events) { (..., m.trigger(events)); };
-
-  // full clockwise
-  trigger(Event::updateB, // cw1
-          Event::updateA, // cw2
-          Event::updateB, // cw3
-          Event::updateA  // idle
-  );
-
-  if (!(m.currentState() == State::idle && delta == 1)) {
-    throw std::runtime_error("machine failed at full clockwise");
-  }
-  delta = 0;
-
-  // full counterclockwise
-  trigger(Event::updateA, // ccw1
-          Event::updateB, // ccw2
-          Event::updateA, // ccw3
-          Event::updateB  // idle
-  );
-
-  if (!(m.currentState() == State::idle && delta == -1)) {
-    throw std::runtime_error("machine failed at full counterclockwise");
-  }
-  delta = 0;
-
-  // halfway clockwise
-  trigger(Event::updateB, // cw1
-          Event::updateA, // cw2
-          Event::updateB, // cw3
-          Event::updateB, // cw2
-          Event::updateA, // cw1
-          Event::updateB  // idle
-  );
-
-  if (!(m.currentState() == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at halfway clockwise");
-  }
-
-  // halfway clockwise
-  trigger(Event::updateA, // ccw1
-          Event::updateB, // ccw2
-          Event::updateA, // ccw3
-          Event::updateA, // ccw2
-          Event::updateB, // ccw1
-          Event::updateA  // idle
-  );
-
-  if (!(m.currentState() == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at halfway counterclockwise");
-  }
-
-  delta = deltaStart;
-  m.setState(currentStateStart);
+      State::idle, transitions);
 }
 
 static void encoderTBEventBased(benchmark::State &s) {
   int delta = 0;
   auto m = makeStateMachine(delta);
-
-  testMachine(m, delta);
 
   static std::mt19937 mt{std::random_device{}()};
   std::uniform_int_distribution<short> dist(0, 1);
@@ -310,74 +244,9 @@ auto makeStateMachine(int &delta) {
                              std::function([&] { delta--; }))});
 }
 
-template <typename Machine> void testMachine(Machine &m, int &delta) {
-  const int deltaStart = delta;
-  const State currentStateStart = m.currentState;
-
-  delta = 0;
-  m.currentState = State::idle;
-
-  auto trigger = [&](auto... events) { (..., m.trigger(events)); };
-
-  // full clockwise
-  trigger(Event::updateB, // cw1
-          Event::updateA, // cw2
-          Event::updateB, // cw3
-          Event::updateA  // idle
-  );
-
-  if (!(m.currentState == State::idle && delta == 1)) {
-    throw std::runtime_error("machine failed at full clockwise");
-  }
-  delta = 0;
-
-  // full counterclockwise
-  trigger(Event::updateA, // ccw1
-          Event::updateB, // ccw2
-          Event::updateA, // ccw3
-          Event::updateB  // idle
-  );
-
-  if (!(m.currentState == State::idle && delta == -1)) {
-    throw std::runtime_error("machine failed at full counterclockwise");
-  }
-  delta = 0;
-
-  // halfway clockwise
-  trigger(Event::updateB, // cw1
-          Event::updateA, // cw2
-          Event::updateB, // cw3
-          Event::updateB, // cw2
-          Event::updateA, // cw1
-          Event::updateB  // idle
-  );
-
-  if (!(m.currentState == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at halfway clockwise");
-  }
-
-  // halfway clockwise
-  trigger(Event::updateA, // ccw1
-          Event::updateB, // ccw2
-          Event::updateA, // ccw3
-          Event::updateA, // ccw2
-          Event::updateB, // ccw1
-          Event::updateA  // idle
-  );
-
-  if (!(m.currentState == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at halfway counterclockwise");
-  }
-
-  delta = deltaStart;
-  m.currentState = currentStateStart;
-}
-
 static void encoderDOEventBased(benchmark::State &s) {
   int delta = 0;
   auto m = makeStateMachine(delta);
-
-  testMachine(m, delta);
 
   static std::mt19937 mt{std::random_device{}()};
   std::uniform_int_distribution<short> dist(0, 1);
@@ -524,90 +393,11 @@ auto makeStateMachine(int &delta, const bool &a, const bool &b) {
       transitions, State::idle};
 }
 
-template <typename... Args>
-void testMachine(susml::minimal::StateMachine<Args...> &m, int &delta, bool &a,
-                 bool &b) {
-  const bool aStart = a;
-  const bool bStart = b;
-  const int deltaStart = delta;
-  const State currentStateStart = m.currentState;
-
-  a = false;
-  b = false;
-  delta = 0;
-  m.currentState = State::idle;
-
-  auto makeUpdate = [&](Update update) {
-    a = update.newA;
-    b = update.newB;
-    m.trigger(Event::update);
-  };
-
-  auto trigger = [&](auto... updates) { (..., makeUpdate(updates)); };
-
-  // full clockwise
-  trigger(Update{false, true}, Update{true, true}, Update{true, false},
-          Update{false, false});
-
-  if (!(m.currentState == State::idle && delta == 1)) {
-    throw std::runtime_error("machine failed at full clockwise");
-  }
-
-  // full counterclockwise
-  trigger(Update{true, false}, Update{true, true}, Update{false, true},
-          Update{false, false});
-
-  if (!(m.currentState == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at full counterclockwise");
-  }
-
-  // halfway clockwise
-  trigger(Update{false, true}, // cw1
-          Update{true, true},  // cw2
-          Update{true, false}, // cw3
-          Update{true, true},  // cw2
-          Update{false, true}, // cw1
-          Update{false, false} // idle
-  );
-
-  if (!(m.currentState == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at halfway clockwise");
-  }
-
-  // halfway counterclockwise
-  trigger(Update{true, false}, // ccw1
-          Update{true, true},  // ccw2
-          Update{false, true}, // ccw3
-          Update{true, true},  // ccw2
-          Update{true, false}, // ccw1
-          Update{false, false} // idle
-  );
-
-  if (!(m.currentState == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at halfway counterclockwise");
-  }
-
-  // error clockwise
-  trigger(Update{false, true}, // cw1
-          Update{true, true},  // cw2
-          Update{true, false}, // cw3
-          Update{false, true}, // error
-          Update{false, false} // idle
-  );
-
-  a = aStart;
-  b = bStart;
-  delta = deltaStart;
-  m.currentState = currentStateStart;
-}
-
 static void encoderMGuardBased(benchmark::State &s) {
   int delta = 0;
   bool a = false;
   bool b = false;
   auto m = makeStateMachine(delta, a, b);
-
-  testMachine(m, delta, a, b);
 
   static std::mt19937 mt{std::random_device{}()};
   std::uniform_int_distribution<short> dist(0, 1);
@@ -917,79 +707,7 @@ auto makeStateMachine(int &delta, bool &a, bool &b) {
                  [&] { delta--; }));
 
   return susml::tuplebased::StateMachine<State, Event, decltype(transitions)>(
-      transitions, State::idle);
-}
-
-template <typename... Args>
-void testMachine(susml::tuplebased::StateMachine<Args...> &m, int &delta,
-                 bool &a, bool &b) {
-  const bool aStart = a;
-  const bool bStart = b;
-  const int deltaStart = delta;
-  const State currentStateStart = m.currentState();
-
-  a = false;
-  b = false;
-  delta = 0;
-  m.setState(State::idle);
-
-  auto makeUpdate = [&](Update update) {
-    a = update.newA;
-    b = update.newB;
-    m.trigger(Event::update);
-  };
-
-  auto trigger = [&](auto... updates) { (..., makeUpdate(updates)); };
-
-  // full clockwise
-  trigger(Update{false, true}, // cw1
-          Update{true, true},  // cw2
-          Update{true, false}, // cw3
-          Update{false, false} // idle
-  );
-
-  if (!(m.currentState() == State::idle && delta == 1)) {
-    throw std::runtime_error("machine failed at full clockwise");
-  }
-
-  // full counterclockwise
-  trigger(Update{true, false}, Update{true, true}, Update{false, true},
-          Update{false, false});
-
-  if (!(m.currentState() == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at full counterclockwise");
-  }
-
-  // halfway clockwise
-  trigger(Update{false, true}, // cw1
-          Update{true, true},  // cw2
-          Update{true, false}, // cw3
-          Update{true, true},  // cw2
-          Update{false, true}, // cw1
-          Update{false, false} // idle
-  );
-
-  if (!(m.currentState() == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at halfway clockwise");
-  }
-
-  // halfway counterclockwise
-  trigger(Update{true, false}, // ccw1
-          Update{true, true},  // ccw2
-          Update{false, true}, // ccw3
-          Update{true, true},  // ccw2
-          Update{true, false}, // ccw1
-          Update{false, false} // idle
-  );
-
-  if (!(m.currentState() == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at halfway counterclockwise");
-  }
-
-  a = aStart;
-  b = bStart;
-  delta = deltaStart;
-  m.setState(currentStateStart);
+      State::idle, transitions);
 }
 
 static void encoderTBGuardBased(benchmark::State &s) {
@@ -997,8 +715,6 @@ static void encoderTBGuardBased(benchmark::State &s) {
   bool a = false;
   bool b = false;
   auto m = makeStateMachine(delta, a, b);
-
-  testMachine(m, delta, a, b);
 
   static std::mt19937 mt{std::random_device{}()};
   std::uniform_int_distribution<short> dist(0, 1);
