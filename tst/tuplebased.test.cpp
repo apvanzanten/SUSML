@@ -15,12 +15,14 @@
 
 #include "tuplebased.hpp"
 
+using susml::Transition;
+using susml::tuplebased::StateMachine;
+
 bool trueGuard() { return true; }
 
 void noneAction() {}
 
 TEST(ValidationTests, transitions) {
-  using susml::Transition;
   using susml::tuplebased::validate::isTransitionType;
 
   enum class State { a, b, c };
@@ -39,7 +41,6 @@ TEST(ValidationTests, transitions) {
 }
 
 TEST(ValidationTests, transitionTuples) {
-  using susml::Transition;
   using susml::tuplebased::validate::isValidTransitionTupleType;
 
   EXPECT_TRUE((isValidTransitionTupleType<
@@ -75,8 +76,6 @@ TEST(ValidationTests, transitionTuples) {
 }
 
 TEST(TransitionTests, basic) {
-  using susml::Transition;
-
   enum class State { off, on };
   enum class Event { turnOn, turnOff };
 
@@ -91,8 +90,6 @@ TEST(TransitionTests, basic) {
 }
 
 TEST(TransitionTests, basicWithGuard) {
-  using susml::Transition;
-
   bool val = false;
   auto getVal = [&val] { return val; };
 
@@ -107,8 +104,6 @@ TEST(TransitionTests, basicWithGuard) {
 }
 
 TEST(TransitionTests, basicWithAction) {
-  using susml::Transition;
-
   bool val = false;
   auto unitGuard = [] { return true; };
   auto setVal = [&val] { val = true; };
@@ -124,7 +119,6 @@ TEST(TransitionTests, basicWithAction) {
 }
 
 TEST(StateMachineTests, basicTransition) {
-
   enum class State { on, off };
   enum class Event { turnOn, turnOff };
 
@@ -209,10 +203,123 @@ TEST(StateMachineTests, transitionWithGaurdAndActions) {
   EXPECT_EQ("turnOff", reports.back());
 }
 
-namespace encoder {
-using susml::Transition;
-using susml::tuplebased::StateMachine;
+namespace EncoderEventBased {
+enum class State {
+  idle,
+  clockwise1,
+  clockwise2,
+  clockwise3,
+  counterclockwise1,
+  counterclockwise2,
+  counterclockwise3,
+};
 
+enum class Event { updateA, updateB };
+
+auto makeStateMachine(int &delta) {
+  auto NoGuard = [] { return true; };
+  auto NoAction = [] {};
+
+  auto transitions = std::make_tuple(
+      Transition(State::idle, State::clockwise1, Event::updateB, NoGuard,
+                 NoAction),
+      Transition(State::clockwise1, State::idle, Event::updateB, NoGuard,
+                 NoAction),
+      Transition(State::clockwise1, State::clockwise2, Event::updateA, NoGuard,
+                 NoAction),
+      Transition(State::clockwise2, State::clockwise1, Event::updateA, NoGuard,
+                 NoAction),
+      Transition(State::clockwise2, State::clockwise3, Event::updateB, NoGuard,
+                 NoAction),
+      Transition(State::clockwise3, State::clockwise2, Event::updateB, NoGuard,
+                 NoAction),
+      Transition(State::clockwise3, State::idle, Event::updateA, NoGuard,
+                 [&] { delta++; }),
+      Transition(State::idle, State::counterclockwise1, Event::updateA, NoGuard,
+                 NoAction),
+      Transition(State::counterclockwise1, State::idle, Event::updateA, NoGuard,
+                 NoAction),
+      Transition(State::counterclockwise1, State::counterclockwise2,
+                 Event::updateB, NoGuard, NoAction),
+      Transition(State::counterclockwise2, State::counterclockwise1,
+                 Event::updateB, NoGuard, NoAction),
+      Transition(State::counterclockwise2, State::counterclockwise3,
+                 Event::updateA, NoGuard, NoAction),
+      Transition(State::counterclockwise3, State::counterclockwise2,
+                 Event::updateA, NoGuard, NoAction),
+      Transition(State::counterclockwise3, State::idle, Event::updateB, NoGuard,
+                 [&] { delta--; }));
+
+  return susml::tuplebased::StateMachine<State, Event, decltype(transitions)>(
+      State::idle, transitions);
+}
+}
+
+TEST(EncoderEventBasedTests, fullClockWise) {
+  using namespace EncoderEventBased;
+
+  int delta = 0;
+  auto m = makeStateMachine(delta);
+
+  m.trigger(Event::updateB); // cw1
+  m.trigger(Event::updateA); // cw2
+  m.trigger(Event::updateB); // cw3
+  m.trigger(Event::updateA); // idle
+
+  EXPECT_EQ(State::idle, m.currentState);
+  EXPECT_EQ(1, delta);
+}
+
+TEST(EncoderEventBasedTests, fullCounterClockWise) {
+  using namespace EncoderEventBased;
+
+  int delta = 0;
+  auto m = makeStateMachine(delta);
+
+  m.trigger(Event::updateA); // ccw1
+  m.trigger(Event::updateB); // ccw2
+  m.trigger(Event::updateA); // ccw3
+  m.trigger(Event::updateB); // idle
+
+  EXPECT_EQ(State::idle, m.currentState);
+  EXPECT_EQ(-1, delta);
+}
+
+TEST(EncoderEventBasedTests, halfwayClockwise) {
+  using namespace EncoderEventBased;
+
+  int delta = 0;
+  auto m = makeStateMachine(delta);
+
+  m.trigger(Event::updateB); // cw1
+  m.trigger(Event::updateA); // cw2
+  m.trigger(Event::updateB); // cw3
+  m.trigger(Event::updateB); // cw2
+  m.trigger(Event::updateA); // cw1
+  m.trigger(Event::updateB); // idle
+
+  EXPECT_EQ(State::idle, m.currentState);
+  EXPECT_EQ(0, delta);
+}
+
+TEST(EncoderEventBasedTests, halfwayCounterClockwise) {
+  using namespace EncoderEventBased;
+
+  int delta = 0;
+  auto m = makeStateMachine(delta);
+
+  m.trigger(Event::updateA); // ccw1
+  m.trigger(Event::updateB); // ccw2
+  m.trigger(Event::updateA); // ccw3
+  m.trigger(Event::updateA); // ccw2
+  m.trigger(Event::updateB); // ccw1
+  m.trigger(Event::updateA); // idle
+
+  EXPECT_EQ(State::idle, m.currentState);
+  EXPECT_EQ(0, delta);
+}
+
+namespace EncoderGuardBased {
 enum class State {
   idle,
   clockwise1,
@@ -231,7 +338,6 @@ struct Update {
 };
 
 auto makeStateMachine(int &delta, bool &a, bool &b) {
-
   auto And = [&](bool desiredA, bool desiredB) {
     return
         [&a, &b, desiredA, desiredB] { return a == desiredA && b == desiredB; };
@@ -297,12 +403,12 @@ struct Fixture : public ::testing::Test {
   }
 };
 
-} // namespace encoder
+} // namespace EncoderGuardBased
 
-using EncoderTestFixture = encoder::Fixture;
+using EncoderGuardBasedFixture = EncoderGuardBased::Fixture;
 
-TEST_F(EncoderTestFixture, fullClockWise) {
-  using namespace encoder;
+TEST_F(EncoderGuardBasedFixture, fullClockWise) {
+  using namespace EncoderGuardBased;
 
   auto m = makeStateMachine(delta, a, b);
 
@@ -317,8 +423,8 @@ TEST_F(EncoderTestFixture, fullClockWise) {
   EXPECT_EQ(1, delta);
 }
 
-TEST_F(EncoderTestFixture, fullCounterClockwise) {
-  using namespace encoder;
+TEST_F(EncoderGuardBasedFixture, fullCounterClockwise) {
+  using namespace EncoderGuardBased;
 
   auto m = makeStateMachine(delta, a, b);
 
@@ -333,8 +439,8 @@ TEST_F(EncoderTestFixture, fullCounterClockwise) {
   EXPECT_EQ(-1, delta);
 }
 
-TEST_F(EncoderTestFixture, halfwayClockwise) {
-  using namespace encoder;
+TEST_F(EncoderGuardBasedFixture, halfwayClockwise) {
+  using namespace EncoderGuardBased;
 
   auto m = makeStateMachine(delta, a, b);
 
@@ -350,8 +456,9 @@ TEST_F(EncoderTestFixture, halfwayClockwise) {
   EXPECT_EQ(State::idle, m.currentState);
   EXPECT_EQ(0, delta);
 }
-TEST_F(EncoderTestFixture, halfwayCounterClockwise) {
-  using namespace encoder;
+
+TEST_F(EncoderGuardBasedFixture, halfwayCounterClockwise) {
+  using namespace EncoderGuardBased;
 
   auto m = makeStateMachine(delta, a, b);
 
