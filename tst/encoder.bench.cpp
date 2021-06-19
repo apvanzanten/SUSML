@@ -2,7 +2,6 @@
 #include <random>
 #include <stdexcept>
 
-#include "dataoriented/StateMachine.hpp"
 #include "factory.hpp"
 #include "minimal/StateMachine.hpp"
 #include "tuplebased.hpp"
@@ -203,75 +202,6 @@ static void encoderTBEventBased(benchmark::State &s) {
   s.counters["d"] = delta;
 }
 } // namespace tuplebased
-
-namespace dataoriented {
-using susml::Transition;
-
-auto makeStateMachine(int &delta) {
-  std::function NoGuard = [] { return true; };
-  std::function NoAction = [] {};
-
-  return susml::dataoriented::fromTransitions(
-      State::idle,
-      std::vector{Transition(State::idle, State::clockwise1, Event::updateB,
-                             NoGuard, NoAction),
-                  Transition(State::clockwise1, State::idle, Event::updateB,
-                             NoGuard, NoAction),
-                  Transition(State::clockwise1, State::clockwise2,
-                             Event::updateA, NoGuard, NoAction),
-                  Transition(State::clockwise2, State::clockwise1,
-                             Event::updateA, NoGuard, NoAction),
-                  Transition(State::clockwise2, State::clockwise3,
-                             Event::updateB, NoGuard, NoAction),
-                  Transition(State::clockwise3, State::clockwise2,
-                             Event::updateB, NoGuard, NoAction),
-                  Transition(State::clockwise3, State::idle, Event::updateA,
-                             NoGuard, std::function([&] { delta++; })),
-                  Transition(State::idle, State::counterclockwise1,
-                             Event::updateA, NoGuard, NoAction),
-                  Transition(State::counterclockwise1, State::idle,
-                             Event::updateA, NoGuard, NoAction),
-                  Transition(State::counterclockwise1, State::counterclockwise2,
-                             Event::updateB, NoGuard, NoAction),
-                  Transition(State::counterclockwise2, State::counterclockwise1,
-                             Event::updateB, NoGuard, NoAction),
-                  Transition(State::counterclockwise2, State::counterclockwise3,
-                             Event::updateA, NoGuard, NoAction),
-                  Transition(State::counterclockwise3, State::counterclockwise2,
-                             Event::updateA, NoGuard, NoAction),
-                  Transition(State::counterclockwise3, State::idle,
-                             Event::updateB, NoGuard,
-                             std::function([&] { delta--; }))});
-}
-
-static void encoderDOEventBased(benchmark::State &s) {
-  int delta = 0;
-  auto m = makeStateMachine(delta);
-
-  static std::mt19937 mt{std::random_device{}()};
-  std::uniform_int_distribution<short> dist(0, 1);
-
-  auto getEvents = [&] {
-    std::vector<Event> events(s.range(0));
-    for (auto &e : events) {
-      e = (dist(mt) == 0) ? Event::updateA : Event::updateB;
-    }
-    return events;
-  };
-
-  for (auto _ : s) {
-    s.PauseTiming();
-    auto events = getEvents();
-    s.ResumeTiming();
-
-    for (const Event &e : events) {
-      m.trigger(e);
-    }
-  }
-
-  s.counters["d"] = delta;
-}
-} // namespace dataoriented
 } // namespace eventBased
 
 namespace guardBased {
@@ -439,225 +369,6 @@ static void encoderMGuardBased(benchmark::State &s) {
 }
 
 } // namespace minimal
-namespace dataoriented {
-
-auto makeStateMachine(int &delta, const bool &a, const bool &b) {
-  using namespace susml::factory;
-  using susml::dataoriented::StateMachine;
-
-  auto fn = [](auto f) { return std::function(f); };
-
-  return susml::dataoriented::fromTransitions(
-      State::idle,
-      std::vector{From(State::idle) // false false
-                      .To(State::clockwise1)
-                      .On(Event::update)
-                      .If(fn([&] { return a == false && b == true; }))
-                      .Do(fn([] {}))
-                      .make(),
-                  From(State::clockwise1) // false true
-                      .To(State::idle)
-                      .On(Event::update)
-                      .If(fn([&] { return a == false && b == false; }))
-                      .Do(fn([] {}))
-                      .make(),
-                  From(State::clockwise1) // false true
-                      .To(State::clockwise2)
-                      .On(Event::update)
-                      .If(fn([&] { return a == true && b == true; }))
-                      .Do(fn([] {}))
-                      .make(),
-                  From(State::clockwise2) // true true
-                      .To(State::clockwise1)
-                      .On(Event::update)
-                      .If(fn([&] { return a == false && b == true; }))
-                      .Do(fn([] {}))
-                      .make(),
-                  From(State::clockwise2) // true true
-                      .To(State::clockwise3)
-                      .On(Event::update)
-                      .If(fn([&] { return a == true && b == false; }))
-                      .Do(fn([] {}))
-                      .make(),
-                  From(State::clockwise3) // true false
-                      .To(State::clockwise2)
-                      .On(Event::update)
-                      .If(fn([&] { return a == true && b == true; }))
-                      .Do(fn([] {}))
-                      .make(),
-                  From(State::clockwise3) // true false
-                      .To(State::idle)
-                      .On(Event::update)
-                      .If(fn([&] { return a == false && b == false; }))
-                      .Do(fn([&] { delta++; }))
-                      .make(),
-                  From(State::idle) // false false
-                      .To(State::counterclockwise1)
-                      .On(Event::update)
-                      .If(fn([&] { return a == true && b == false; }))
-                      .Do(fn([] {}))
-                      .make(),
-                  From(State::counterclockwise1) // true false
-                      .To(State::idle)
-                      .On(Event::update)
-                      .If(fn([&] { return a == false && b == false; }))
-                      .Do(fn([] {}))
-                      .make(),
-                  From(State::counterclockwise1) // true false
-                      .To(State::counterclockwise2)
-                      .On(Event::update)
-                      .If(fn([&] { return a == true && b == true; }))
-                      .Do(fn([] {}))
-                      .make(),
-                  From(State::counterclockwise2) // true true
-                      .To(State::counterclockwise1)
-                      .On(Event::update)
-                      .If(fn([&] { return a == true && b == false; }))
-                      .Do(fn([] {}))
-                      .make(),
-                  From(State::counterclockwise2) // true true
-                      .To(State::counterclockwise3)
-                      .On(Event::update)
-                      .If(fn([&] { return a == false && b == true; }))
-                      .Do(fn([] {}))
-                      .make(),
-                  From(State::counterclockwise3) // false true
-                      .To(State::counterclockwise2)
-                      .On(Event::update)
-                      .If(fn([&] { return a == true && b == true; }))
-                      .Do(fn([] {}))
-                      .make(),
-                  From(State::counterclockwise3) // false true
-                      .To(State::idle)
-                      .On(Event::update)
-                      .If(fn([&] { return a == false && b == false; }))
-                      .Do(fn([&] { delta--; }))
-                      .make()});
-}
-
-template <typename Machine>
-void testMachine(Machine &m, int &delta, bool &a, bool &b) {
-  const bool aStart = a;
-  const bool bStart = b;
-  const int deltaStart = delta;
-  const State currentStateStart = m.currentState;
-
-  a = false;
-  b = false;
-  delta = 0;
-  m.currentState = State::idle;
-
-  auto makeUpdate = [&](Update update) {
-    a = update.newA;
-    b = update.newB;
-    m.trigger(Event::update);
-  };
-
-  auto trigger = [&](auto... updates) { (..., makeUpdate(updates)); };
-
-  // full clockwise
-  trigger(Update{false, true}, Update{true, true}, Update{true, false},
-          Update{false, false});
-
-  if (!(m.currentState == State::idle && delta == 1)) {
-    throw std::runtime_error("machine failed at full clockwise");
-  }
-
-  // full counterclockwise
-  trigger(Update{true, false}, Update{true, true}, Update{false, true},
-          Update{false, false});
-
-  if (!(m.currentState == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at full counterclockwise");
-  }
-
-  // halfway clockwise
-  trigger(Update{false, true}, // cw1
-          Update{true, true},  // cw2
-          Update{true, false}, // cw3
-          Update{true, true},  // cw2
-          Update{false, true}, // cw1
-          Update{false, false} // idle
-  );
-
-  if (!(m.currentState == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at halfway clockwise");
-  }
-
-  // halfway counterclockwise
-  trigger(Update{true, false}, // ccw1
-          Update{true, true},  // ccw2
-          Update{false, true}, // ccw3
-          Update{true, true},  // ccw2
-          Update{true, false}, // ccw1
-          Update{false, false} // idle
-  );
-
-  if (!(m.currentState == State::idle && delta == 0)) {
-    throw std::runtime_error("machine failed at halfway counterclockwise");
-  }
-
-  // error clockwise
-  trigger(Update{false, true}, // cw1
-          Update{true, true},  // cw2
-          Update{true, false}, // cw3
-          Update{false, true}, // error
-          Update{false, false} // idle
-  );
-
-  a = aStart;
-  b = bStart;
-  delta = deltaStart;
-  m.currentState = currentStateStart;
-}
-
-static void encoderDOGuardBased(benchmark::State &s) {
-  int delta = 0;
-  bool a = false;
-  bool b = false;
-  auto m = makeStateMachine(delta, a, b);
-
-  testMachine(m, delta, a, b);
-
-  static std::mt19937 mt{std::random_device{}()};
-  std::uniform_int_distribution<short> dist(0, 1);
-
-  auto getUpdates = [&] {
-    std::vector<Update> updates(s.range(0));
-
-    updates[0].newA = false;
-    updates[0].newA = false;
-
-    for (std::size_t i = 1; i < updates.size(); i++) {
-      updates[i] = updates[i - 1];
-
-      const auto r = dist(mt);
-      if (r == 0) {
-        updates[i].newA = !updates[i - 1].newA;
-      } else {
-        updates[i].newB = !updates[i - 1].newB;
-      }
-    }
-
-    return updates;
-  };
-
-  for (auto _ : s) {
-    s.PauseTiming();
-    auto updates = getUpdates();
-    s.ResumeTiming();
-
-    for (const Update &u : updates) {
-      a = u.newA;
-      b = u.newB;
-
-      m.trigger(Event::update);
-    }
-  }
-
-  s.counters["d"] = delta;
-}
-} // namespace dataoriented
 
 namespace tuplebased {
 using susml::Transition;
@@ -758,10 +469,8 @@ static void encoderTBGuardBased(benchmark::State &s) {
 } // namespace tuplebased
 } // namespace guardBased
 
-using eventBased::dataoriented::encoderDOEventBased;
 using eventBased::minimal::encoderMEventBased;
 using eventBased::tuplebased::encoderTBEventBased;
-using guardBased::dataoriented::encoderDOGuardBased;
 using guardBased::minimal::encoderMGuardBased;
 using guardBased::tuplebased::encoderTBGuardBased;
 
@@ -778,22 +487,12 @@ BENCHMARK(encoderMGuardBased)
     ->Range(numTriggersLowerBound, numTriggersUpperBound)
     ->Unit(benchmark::kMicrosecond);
 
-BENCHMARK(encoderDOGuardBased)
-    ->RangeMultiplier(2)
-    ->Range(numTriggersLowerBound, numTriggersUpperBound)
-    ->Unit(benchmark::kMicrosecond);
-
 BENCHMARK(encoderTBEventBased)
     ->RangeMultiplier(2)
     ->Range(numTriggersLowerBound, numTriggersUpperBound)
     ->Unit(benchmark::kMicrosecond);
 
 BENCHMARK(encoderMEventBased)
-    ->RangeMultiplier(2)
-    ->Range(numTriggersLowerBound, numTriggersUpperBound)
-    ->Unit(benchmark::kMicrosecond);
-
-BENCHMARK(encoderDOEventBased)
     ->RangeMultiplier(2)
     ->Range(numTriggersLowerBound, numTriggersUpperBound)
     ->Unit(benchmark::kMicrosecond);
