@@ -18,7 +18,7 @@
 #include "vectorbased.hpp"
 
 namespace susml {
-  using namespace vectorbased;
+using namespace vectorbased;
 }
 
 #endif

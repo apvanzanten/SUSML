@@ -26,8 +26,8 @@ constexpr auto makeTransition(std::size_t &counter) {
   constexpr auto source = Index;
   constexpr auto target = ((Index + 1) < TotalTransitions) ? Index + 1 : 0;
 
-  constexpr auto guard = [] { return true; };
-  auto action = [&] {
+  constexpr auto guard  = [] { return true; };
+  auto           action = [&] {
     counter += Index + 1;
 #if PRINT_INFO == (true)
     std::cout << ".";
@@ -39,8 +39,7 @@ constexpr auto makeTransition(std::size_t &counter) {
 }
 
 template <std::size_t... Indices>
-constexpr auto makeTransitions(const std::index_sequence<Indices...> &,
-                               std::size_t &counter) {
+constexpr auto makeTransitions(const std::index_sequence<Indices...> &, std::size_t &counter) {
   constexpr auto totalTransitions = sizeof...(Indices);
   return std::make_tuple(makeTransition<Indices, totalTransitions>(counter)...);
 }
@@ -48,9 +47,8 @@ constexpr auto makeTransitions(const std::index_sequence<Indices...> &,
 int main() {
   size_t counter = 0;
 
-  auto transitions =
-      makeTransitions(std::make_index_sequence<NUM_TRANSITIONS>(), counter);
-  auto m = StateMachine<int, int, decltype(transitions)>{transitions, 0};
+  auto transitions = makeTransitions(std::make_index_sequence<NUM_TRANSITIONS>(), counter);
+  auto m           = StateMachine<int, int, decltype(transitions)>{transitions, 0};
 
   for (int i = 0; i < NUM_TRIGGERS; i++) {
     m.trigger(true);
@@ -58,8 +56,7 @@ int main() {
 
 #if PRINT_INFO == (true)
   std::cout << std::endl
-            << std::boolalpha << "num transitions: " << NUM_TRANSITIONS
-            << std::endl
+            << std::boolalpha << "num transitions: " << NUM_TRANSITIONS << std::endl
             << "num triggers: " << NUM_TRIGGERS << std::endl;
 #endif
 

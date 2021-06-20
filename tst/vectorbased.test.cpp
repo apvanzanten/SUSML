@@ -28,46 +28,45 @@ TEST(BasicTest, basic) {
   enum class State { off, on };
   enum class Event { turnOn, turnOff };
 
-  using Guard = std::function<bool()>;
-  using Action = std::function<void()>;
-  using Transition = susml::Transition<State, Event, Guard, Action>;
+  using Guard        = std::function<bool()>;
+  using Action       = std::function<void()>;
+  using Transition   = susml::Transition<State, Event, Guard, Action>;
   using StateMachine = StateMachine<Transition>;
 
   std::size_t numActionCalled = 0;
-  std::size_t numGuardCalled = 0;
-  auto countedGuard = [&numGuardCalled] {
+  std::size_t numGuardCalled  = 0;
+  auto        countedGuard    = [&numGuardCalled] {
     numGuardCalled++;
     return true;
   };
   auto countedAction = [&numActionCalled] { numActionCalled++; };
 
-  auto m = StateMachine{
-      State::off,
-      {{
-           State::off,    // transition from state off
-           State::on,     // transition to state on
-           Event::turnOn, // transition in response to turnOn event
-           countedGuard,  // transition only if countGuard returns true
-           [&] {
-             countedAction();
-             countedAction();
-           } // on transition, call countAction twice
-       },
-       {
-           State::on,      // transition from state on
-           State::off,     // transition to state off
-           Event::turnOff, // transition in response to turnOff
-                           // event
-           countedGuard,   // transition only if countGuard returns true
-           countedAction   // on transition, call countAction
-       },
-       {
-           State::on,           // transition from state on
-           State::on,           // transition to state on
-           Event::turnOn,       // transition in response to turnOn event
-           [] { return true; }, // transition always
-           countedAction,       // on transition, call countAction
-       }}};
+  auto m = StateMachine{State::off,
+                        {{
+                             State::off,    // transition from state off
+                             State::on,     // transition to state on
+                             Event::turnOn, // transition in response to turnOn event
+                             countedGuard,  // transition only if countGuard returns true
+                             [&] {
+                               countedAction();
+                               countedAction();
+                             } // on transition, call countAction twice
+                         },
+                         {
+                             State::on,      // transition from state on
+                             State::off,     // transition to state off
+                             Event::turnOff, // transition in response to turnOff
+                                             // event
+                             countedGuard,   // transition only if countGuard returns true
+                             countedAction   // on transition, call countAction
+                         },
+                         {
+                             State::on,           // transition from state on
+                             State::on,           // transition to state on
+                             Event::turnOn,       // transition in response to turnOn event
+                             [] { return true; }, // transition always
+                             countedAction,       // on transition, call countAction
+                         }}};
 
   EXPECT_EQ(m.currentState, State::off);
 
@@ -96,23 +95,21 @@ TEST(CompositeTests, controllerAndSubsystem) {
   using namespace susml::factory;
 
   struct System {
-    using Guard = std::function<bool()>;
+    using Guard  = std::function<bool()>;
     using Action = std::function<void()>;
 
-    const std::function<bool()> NoGuard = [] { return true; };
+    const std::function<bool()> NoGuard  = [] { return true; };
     const std::function<void()> NoAction = [] {};
 
     enum class ControllerState { on, off };
     enum class ControllerEvent { turnOn, turnOff };
-    using ControllerTransition =
-        susml::Transition<ControllerState, ControllerEvent, Guard, Action>;
-    using Controller = StateMachine<ControllerTransition>;
+    using ControllerTransition = susml::Transition<ControllerState, ControllerEvent, Guard, Action>;
+    using Controller           = StateMachine<ControllerTransition>;
 
     enum class SubsystemState { off, idle, running };
     enum class SubsystemEvent { turnOn, run, finish, turnOff };
-    using SubsystemTransition =
-        susml::Transition<SubsystemState, SubsystemEvent, Guard, Action>;
-    using Subsystem = StateMachine<SubsystemTransition>;
+    using SubsystemTransition = susml::Transition<SubsystemState, SubsystemEvent, Guard, Action>;
+    using Subsystem           = StateMachine<SubsystemTransition>;
 
     // forward declaration to allow references to eachother
     Subsystem subsys{SubsystemState::off,
@@ -152,10 +149,8 @@ TEST(CompositeTests, controllerAndSubsystem) {
          From(ControllerState::on)
              .To(ControllerState::off)
              .On(ControllerEvent::turnOff)
-             .If(std::function(
-                 [&] { return subsys.currentState == SubsystemState::idle; }))
-             .Do(std::function(
-                 [&] { subsys.trigger(SubsystemEvent::turnOff); }))
+             .If(std::function([&] { return subsys.currentState == SubsystemState::idle; }))
+             .Do(std::function([&] { subsys.trigger(SubsystemEvent::turnOff); }))
              .make()}};
   } system;
 
@@ -199,90 +194,54 @@ enum class Event { updateA, updateB };
 auto makeStateMachine(int &delta) {
   using namespace susml::factory;
 
-  auto Fn = [](auto e) { return std::function(e); };
+  auto Fn       = [](auto e) { return std::function(e); };
   auto NoAction = Fn([] {});
 
-  std::vector transitions = {From(State::idle)
-                                 .To(State::clockwise1)
-                                 .On(Event::updateB)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise1)
-                                 .To(State::idle)
-                                 .On(Event::updateB)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise1)
-                                 .To(State::clockwise2)
-                                 .On(Event::updateA)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise2)
-                                 .To(State::clockwise1)
-                                 .On(Event::updateA)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise2)
-                                 .To(State::clockwise3)
-                                 .On(Event::updateB)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise3)
-                                 .To(State::clockwise2)
-                                 .On(Event::updateB)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise3)
-                                 .To(State::idle)
-                                 .On(Event::updateA)
-                                 .Do(Fn([&] { delta++; }))
-                                 .make(),
-                             From(State::idle)
-                                 .To(State::counterclockwise1)
-                                 .On(Event::updateA)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise1)
-                                 .To(State::idle)
-                                 .On(Event::updateA)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise1)
-                                 .To(State::counterclockwise2)
-                                 .On(Event::updateB)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise2)
-                                 .To(State::counterclockwise1)
-                                 .On(Event::updateB)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise2)
-                                 .To(State::counterclockwise3)
-                                 .On(Event::updateA)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise3)
-                                 .To(State::counterclockwise2)
-                                 .On(Event::updateA)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise3)
-                                 .To(State::idle)
-                                 .On(Event::updateB)
-                                 .Do(Fn([&] { delta--; }))
-                                 .make()};
+  std::vector transitions = {
+      From(State::idle).To(State::clockwise1).On(Event::updateB).Do(NoAction).make(),
+      From(State::clockwise1).To(State::idle).On(Event::updateB).Do(NoAction).make(),
+      From(State::clockwise1).To(State::clockwise2).On(Event::updateA).Do(NoAction).make(),
+      From(State::clockwise2).To(State::clockwise1).On(Event::updateA).Do(NoAction).make(),
+      From(State::clockwise2).To(State::clockwise3).On(Event::updateB).Do(NoAction).make(),
+      From(State::clockwise3).To(State::clockwise2).On(Event::updateB).Do(NoAction).make(),
+      From(State::clockwise3).To(State::idle).On(Event::updateA).Do(Fn([&] { delta++; })).make(),
+      From(State::idle).To(State::counterclockwise1).On(Event::updateA).Do(NoAction).make(),
+      From(State::counterclockwise1).To(State::idle).On(Event::updateA).Do(NoAction).make(),
+      From(State::counterclockwise1)
+          .To(State::counterclockwise2)
+          .On(Event::updateB)
+          .Do(NoAction)
+          .make(),
+      From(State::counterclockwise2)
+          .To(State::counterclockwise1)
+          .On(Event::updateB)
+          .Do(NoAction)
+          .make(),
+      From(State::counterclockwise2)
+          .To(State::counterclockwise3)
+          .On(Event::updateA)
+          .Do(NoAction)
+          .make(),
+      From(State::counterclockwise3)
+          .To(State::counterclockwise2)
+          .On(Event::updateA)
+          .Do(NoAction)
+          .make(),
+      From(State::counterclockwise3)
+          .To(State::idle)
+          .On(Event::updateB)
+          .Do(Fn([&] { delta--; }))
+          .make()};
 
-  return StateMachine<decltype(transitions)::value_type>{State::idle,
-                                                         transitions};
+  return StateMachine<decltype(transitions)::value_type>{State::idle, transitions};
 }
 } // namespace EncoderEventBased
 
 TEST(EncoderEventBasedTests, fullClockWise) {
   using namespace EncoderEventBased;
 
-  int delta = 0;
-  auto m = makeStateMachine(delta);
+  int  delta = 0;
+  auto m     = makeStateMachine(delta);
 
   m.trigger(Event::updateB); // cw1
   m.trigger(Event::updateA); // cw2
@@ -296,8 +255,8 @@ TEST(EncoderEventBasedTests, fullClockWise) {
 TEST(EncoderEventBasedTests, fullCounterClockWise) {
   using namespace EncoderEventBased;
 
-  int delta = 0;
-  auto m = makeStateMachine(delta);
+  int  delta = 0;
+  auto m     = makeStateMachine(delta);
 
   m.trigger(Event::updateA); // ccw1
   m.trigger(Event::updateB); // ccw2
@@ -311,8 +270,8 @@ TEST(EncoderEventBasedTests, fullCounterClockWise) {
 TEST(EncoderEventBasedTests, halfwayClockwise) {
   using namespace EncoderEventBased;
 
-  int delta = 0;
-  auto m = makeStateMachine(delta);
+  int  delta = 0;
+  auto m     = makeStateMachine(delta);
 
   m.trigger(Event::updateB); // cw1
   m.trigger(Event::updateA); // cw2
@@ -328,8 +287,8 @@ TEST(EncoderEventBasedTests, halfwayClockwise) {
 TEST(EncoderEventBasedTests, halfwayCounterClockwise) {
   using namespace EncoderEventBased;
 
-  int delta = 0;
-  auto m = makeStateMachine(delta);
+  int  delta = 0;
+  auto m     = makeStateMachine(delta);
 
   m.trigger(Event::updateA); // ccw1
   m.trigger(Event::updateB); // ccw2
@@ -359,7 +318,7 @@ auto makeStateMachine(int &delta, const bool &a, const bool &b) {
   using namespace susml::factory;
   using susml::vectorbased::StateMachine;
 
-  auto Fn = [](auto e) { return std::function(e); };
+  auto Fn  = [](auto e) { return std::function(e); };
   auto And = [&](bool desiredA, bool desiredB) {
     return Fn([&] { return (a == desiredA && b == desiredB); });
   };
@@ -450,8 +409,7 @@ auto makeStateMachine(int &delta, const bool &a, const bool &b) {
                                  .Do(Fn([&] { delta--; }))
                                  .make()};
 
-  return StateMachine<decltype(transitions)::value_type>{State::idle,
-                                                         transitions};
+  return StateMachine<decltype(transitions)::value_type>{State::idle, transitions};
 }
 
 struct Update {
@@ -460,9 +418,9 @@ struct Update {
 };
 
 struct Fixture : public ::testing::Test {
-  bool a = false;
-  bool b = false;
-  int delta = 0;
+  bool a     = false;
+  bool b     = false;
+  int  delta = 0;
 
   template <typename... Args>
   void makeUpdate(StateMachine<Args...> &m, Update update) {
@@ -486,10 +444,11 @@ TEST_F(EncoderGuardBasedFixture, fullClockWise) {
   auto m = makeStateMachine(delta, a, b);
 
   // full clockwise
-  trigger(m, Update{false, true}, // cw1
-          Update{true, true},     // cw2
-          Update{true, false},    // cw3
-          Update{false, false}    // idle
+  trigger(m,
+          Update{false, true}, // cw1
+          Update{true, true},  // cw2
+          Update{true, false}, // cw3
+          Update{false, false} // idle
   );
 
   EXPECT_EQ(State::idle, m.currentState);
@@ -502,10 +461,11 @@ TEST_F(EncoderGuardBasedFixture, fullCounterClockwise) {
   auto m = makeStateMachine(delta, a, b);
 
   // full counterclockwise
-  trigger(m, Update{true, false}, // ccw1
-          Update{true, true},     // ccw2
-          Update{false, true},    // ccw3
-          Update{false, false}    // idle
+  trigger(m,
+          Update{true, false}, // ccw1
+          Update{true, true},  // ccw2
+          Update{false, true}, // ccw3
+          Update{false, false} // idle
   );
 
   EXPECT_EQ(State::idle, m.currentState);
@@ -518,12 +478,13 @@ TEST_F(EncoderGuardBasedFixture, halfwayClockwise) {
   auto m = makeStateMachine(delta, a, b);
 
   // halfway clockwise
-  trigger(m, Update{false, true}, // cw1
-          Update{true, true},     // cw2
-          Update{true, false},    // cw3
-          Update{true, true},     // cw2
-          Update{false, true},    // cw1
-          Update{false, false}    // idle
+  trigger(m,
+          Update{false, true}, // cw1
+          Update{true, true},  // cw2
+          Update{true, false}, // cw3
+          Update{true, true},  // cw2
+          Update{false, true}, // cw1
+          Update{false, false} // idle
   );
 
   EXPECT_EQ(State::idle, m.currentState);
@@ -535,12 +496,13 @@ TEST_F(EncoderGuardBasedFixture, halfwayCounterClockwise) {
   auto m = makeStateMachine(delta, a, b);
 
   // halfway counterclockwise
-  trigger(m, Update{true, false}, // ccw1
-          Update{true, true},     // ccw2
-          Update{false, true},    // ccw3
-          Update{true, true},     // ccw2
-          Update{true, false},    // ccw1
-          Update{false, false}    // idle
+  trigger(m,
+          Update{true, false}, // ccw1
+          Update{true, true},  // ccw2
+          Update{false, true}, // ccw3
+          Update{true, true},  // ccw2
+          Update{true, false}, // ccw1
+          Update{false, false} // idle
   );
 
   EXPECT_EQ(State::idle, m.currentState);

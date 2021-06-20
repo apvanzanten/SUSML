@@ -82,10 +82,10 @@ void trigger(Event event, State &currentState, int &delta) {
 }
 
 static void encoderEventBasedHC(benchmark::State &s) {
-  int delta = 0;
+  int   delta        = 0;
   State currentState = State::idle;
 
-  static std::mt19937 mt{std::random_device{}()};
+  static std::mt19937                  mt{std::random_device{}()};
   std::uniform_int_distribution<short> dist(0, 1);
 
   auto getEvents = [&] {
@@ -116,89 +116,53 @@ auto makeStateMachine(int &delta) {
   using namespace susml::factory;
   using susml::vectorbased::StateMachine;
 
-  auto Fn = [](auto e) { return std::function(e); };
+  auto Fn       = [](auto e) { return std::function(e); };
   auto NoAction = Fn([] {});
 
-  std::vector transitions = {From(State::idle)
-                                 .To(State::clockwise1)
-                                 .On(Event::updateB)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise1)
-                                 .To(State::idle)
-                                 .On(Event::updateB)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise1)
-                                 .To(State::clockwise2)
-                                 .On(Event::updateA)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise2)
-                                 .To(State::clockwise1)
-                                 .On(Event::updateA)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise2)
-                                 .To(State::clockwise3)
-                                 .On(Event::updateB)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise3)
-                                 .To(State::clockwise2)
-                                 .On(Event::updateB)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::clockwise3)
-                                 .To(State::idle)
-                                 .On(Event::updateA)
-                                 .Do(Fn([&] { delta++; }))
-                                 .make(),
-                             From(State::idle)
-                                 .To(State::counterclockwise1)
-                                 .On(Event::updateA)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise1)
-                                 .To(State::idle)
-                                 .On(Event::updateA)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise1)
-                                 .To(State::counterclockwise2)
-                                 .On(Event::updateB)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise2)
-                                 .To(State::counterclockwise1)
-                                 .On(Event::updateB)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise2)
-                                 .To(State::counterclockwise3)
-                                 .On(Event::updateA)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise3)
-                                 .To(State::counterclockwise2)
-                                 .On(Event::updateA)
-                                 .Do(NoAction)
-                                 .make(),
-                             From(State::counterclockwise3)
-                                 .To(State::idle)
-                                 .On(Event::updateB)
-                                 .Do(Fn([&] { delta--; }))
-                                 .make()};
+  std::vector transitions = {
+      From(State::idle).To(State::clockwise1).On(Event::updateB).Do(NoAction).make(),
+      From(State::clockwise1).To(State::idle).On(Event::updateB).Do(NoAction).make(),
+      From(State::clockwise1).To(State::clockwise2).On(Event::updateA).Do(NoAction).make(),
+      From(State::clockwise2).To(State::clockwise1).On(Event::updateA).Do(NoAction).make(),
+      From(State::clockwise2).To(State::clockwise3).On(Event::updateB).Do(NoAction).make(),
+      From(State::clockwise3).To(State::clockwise2).On(Event::updateB).Do(NoAction).make(),
+      From(State::clockwise3).To(State::idle).On(Event::updateA).Do(Fn([&] { delta++; })).make(),
+      From(State::idle).To(State::counterclockwise1).On(Event::updateA).Do(NoAction).make(),
+      From(State::counterclockwise1).To(State::idle).On(Event::updateA).Do(NoAction).make(),
+      From(State::counterclockwise1)
+          .To(State::counterclockwise2)
+          .On(Event::updateB)
+          .Do(NoAction)
+          .make(),
+      From(State::counterclockwise2)
+          .To(State::counterclockwise1)
+          .On(Event::updateB)
+          .Do(NoAction)
+          .make(),
+      From(State::counterclockwise2)
+          .To(State::counterclockwise3)
+          .On(Event::updateA)
+          .Do(NoAction)
+          .make(),
+      From(State::counterclockwise3)
+          .To(State::counterclockwise2)
+          .On(Event::updateA)
+          .Do(NoAction)
+          .make(),
+      From(State::counterclockwise3)
+          .To(State::idle)
+          .On(Event::updateB)
+          .Do(Fn([&] { delta--; }))
+          .make()};
 
-  return StateMachine<decltype(transitions)::value_type>{State::idle,
-                                                         transitions};
+  return StateMachine<decltype(transitions)::value_type>{State::idle, transitions};
 }
 
 static void encoderEventBasedVB(benchmark::State &s) {
-  int delta = 0;
-  auto m = makeStateMachine(delta);
+  int  delta = 0;
+  auto m     = makeStateMachine(delta);
 
-  static std::mt19937 mt{std::random_device{}()};
+  static std::mt19937                  mt{std::random_device{}()};
   std::uniform_int_distribution<short> dist(0, 1);
 
   auto getEvents = [&] {
@@ -237,30 +201,24 @@ auto makeStateMachine(int &delta) {
       Transition(State::clockwise2, State::clockwise1, Event::updateA),
       Transition(State::clockwise2, State::clockwise3, Event::updateB),
       Transition(State::clockwise3, State::clockwise2, Event::updateB),
-      Transition(State::clockwise3, State::idle, Event::updateA, NoGuard,
-                 [&] { delta++; }),
+      Transition(State::clockwise3, State::idle, Event::updateA, NoGuard, [&] { delta++; }),
       Transition(State::idle, State::counterclockwise1, Event::updateA),
       Transition(State::counterclockwise1, State::idle, Event::updateA),
-      Transition(State::counterclockwise1, State::counterclockwise2,
-                 Event::updateB),
-      Transition(State::counterclockwise2, State::counterclockwise1,
-                 Event::updateB),
-      Transition(State::counterclockwise2, State::counterclockwise3,
-                 Event::updateA),
-      Transition(State::counterclockwise3, State::counterclockwise2,
-                 Event::updateA),
-      Transition(State::counterclockwise3, State::idle, Event::updateB, NoGuard,
-                 [&] { delta--; }));
+      Transition(State::counterclockwise1, State::counterclockwise2, Event::updateB),
+      Transition(State::counterclockwise2, State::counterclockwise1, Event::updateB),
+      Transition(State::counterclockwise2, State::counterclockwise3, Event::updateA),
+      Transition(State::counterclockwise3, State::counterclockwise2, Event::updateA),
+      Transition(State::counterclockwise3, State::idle, Event::updateB, NoGuard, [&] { delta--; }));
 
-  return susml::tuplebased::StateMachine<State, Event, decltype(transitions)>(
-      State::idle, transitions);
+  return susml::tuplebased::StateMachine<State, Event, decltype(transitions)>(State::idle,
+                                                                              transitions);
 }
 
 static void encoderEventBasedTB(benchmark::State &s) {
-  int delta = 0;
-  auto m = makeStateMachine(delta);
+  int  delta = 0;
+  auto m     = makeStateMachine(delta);
 
-  static std::mt19937 mt{std::random_device{}()};
+  static std::mt19937                  mt{std::random_device{}()};
   std::uniform_int_distribution<short> dist(0, 1);
 
   auto getEvents = [&] {

@@ -26,22 +26,20 @@ namespace validate {
 /* Transitions type validation
  */
 
-template <typename> struct IsTransitionTypeImpl : std::false_type {};
+template <typename>
+struct IsTransitionTypeImpl : std::false_type {};
 
 template <typename StateT, typename EventT, typename GuardT, typename Actions>
-struct IsTransitionTypeImpl<Transition<StateT, EventT, GuardT, Actions>>
-    : std::true_type {};
+struct IsTransitionTypeImpl<Transition<StateT, EventT, GuardT, Actions>> : std::true_type {};
 
-template <typename T> constexpr bool isTransitionType() {
+template <typename T>
+constexpr bool isTransitionType() {
   return IsTransitionTypeImpl<T>::value;
 }
 
 template <typename TransitionTuple, std::size_t... Indices>
-constexpr bool
-areTypesAtIndicesTransitionTypes(std::index_sequence<Indices...>) {
-  return (isTransitionType<
-              typename std::tuple_element<Indices, TransitionTuple>::type>() &&
-          ...);
+constexpr bool areTypesAtIndicesTransitionTypes(std::index_sequence<Indices...>) {
+  return (isTransitionType<typename std::tuple_element<Indices, TransitionTuple>::type>() && ...);
 }
 
 template <typename Transition, typename State, typename Event>
@@ -50,23 +48,20 @@ constexpr bool hasTransitionTypeStateAndEvent() {
          std::is_same<typename Transition::Event, Event>::value;
 }
 
-template <typename TransitionTuple, typename State, typename Event,
-          std::size_t... Indices>
-constexpr bool
-isValidTransitionTupleTypeImpl(const std::index_sequence<Indices...> &) {
-  return (... &&
-          hasTransitionTypeStateAndEvent<
-              typename std::tuple_element<Indices, TransitionTuple>::type,
-              State, Event>());
+template <typename TransitionTuple, typename State, typename Event, std::size_t... Indices>
+constexpr bool isValidTransitionTupleTypeImpl(const std::index_sequence<Indices...> &) {
+  return (
+      ... &&
+      hasTransitionTypeStateAndEvent<typename std::tuple_element<Indices, TransitionTuple>::type,
+                                     State,
+                                     Event>());
 }
 
 template <typename TransitionTuple, typename State, typename Event>
 constexpr bool isValidTransitionTupleType() {
   if constexpr (std::tuple_size<TransitionTuple>::value > 0) {
-    constexpr auto indices =
-        std::make_index_sequence<std::tuple_size<TransitionTuple>::value>();
-    return isValidTransitionTupleTypeImpl<TransitionTuple, State, Event>(
-        indices);
+    constexpr auto indices = std::make_index_sequence<std::tuple_size<TransitionTuple>::value>();
+    return isValidTransitionTupleTypeImpl<TransitionTuple, State, Event>(indices);
   }
   return false; // the tuple is empty, it needs at least one transition
 }
@@ -76,34 +71,29 @@ constexpr bool isValidTransitionTupleType() {
 template <typename StateT, typename EventT, typename TransitionsT>
 struct StateMachine {
   using TransitionTuple = TransitionsT;
-  using State = StateT;
-  using Event = EventT;
+  using State           = StateT;
+  using Event           = EventT;
 
-  static_assert(
-      validate::isValidTransitionTupleType<TransitionTuple, State, Event>(),
-      "StateMachine needs at least one transition, and all "
-      "transitions must have the correct State type and Event type.");
+  static_assert(validate::isValidTransitionTupleType<TransitionTuple, State, Event>(),
+                "StateMachine needs at least one transition, and all "
+                "transitions must have the correct State type and Event type.");
 
-  State currentState;
+  State           currentState;
   TransitionTuple transitions;
 
-  constexpr StateMachine(const State &initialState,
-                         const TransitionTuple &transitions)
+  constexpr StateMachine(const State &initialState, const TransitionTuple &transitions)
       : currentState(initialState), transitions(transitions) {}
 
   constexpr void trigger(const Event &event) {
-    constexpr std::size_t numTransitions =
-        std::tuple_size<TransitionTuple>::value;
+    constexpr std::size_t numTransitions = std::tuple_size<TransitionTuple>::value;
     triggerImpl(event, std::make_index_sequence<numTransitions>());
   }
 
   // helper functions
   template <typename Transition>
-  constexpr bool isTakeableTransition(const Transition &transition,
-                                      const Event &event) {
+  constexpr bool isTakeableTransition(const Transition &transition, const Event &event) {
     if constexpr (Transition::HasGuard()) {
-      return currentState == transition.source && event == transition.event &&
-             transition.guard();
+      return currentState == transition.source && event == transition.event && transition.guard();
     }
     if constexpr (!Transition::HasGuard()) {
       return currentState == transition.source && event == transition.event;
@@ -111,14 +101,11 @@ struct StateMachine {
   }
 
   template <typename Transition>
-  constexpr bool takeTransitionIfAble(Transition &transition,
-                                      const Event &event) {
+  constexpr bool takeTransitionIfAble(Transition &transition, const Event &event) {
 
     const bool isTakeable = isTakeableTransition(transition, event);
     if (isTakeable) {
-      if constexpr (Transition::HasAction()) {
-        transition.action();
-      }
+      if constexpr (Transition::HasAction()) { transition.action(); }
       currentState = transition.target;
       return true;
     }
@@ -126,8 +113,7 @@ struct StateMachine {
   }
 
   template <std::size_t... Indices>
-  constexpr bool triggerImpl(const Event &event,
-                             const std::index_sequence<Indices...> &) {
+  constexpr bool triggerImpl(const Event &event, const std::index_sequence<Indices...> &) {
     return (... || takeTransitionIfAble(std::get<Indices>(transitions), event));
   }
 };

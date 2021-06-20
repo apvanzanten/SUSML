@@ -18,29 +18,26 @@
 #include <vector>
 
 namespace susml::vectorbased {
-template <typename TransitionT> struct StateMachine {
+template <typename TransitionT>
+struct StateMachine {
   using Transition = TransitionT;
-  using State = typename Transition::State;
-  using Event = typename Transition::Event;
+  using State      = typename Transition::State;
+  using Event      = typename Transition::Event;
 
-  State currentState;
+  State                   currentState;
   std::vector<Transition> transitions;
 
   constexpr bool isTransitionTakeable(Transition &t, const Event &event) {
     if constexpr (Transition::HasGuard()) {
       return t.source == currentState && t.event == event && t.guard();
     }
-    if constexpr (!Transition::HasGuard()) {
-      return t.source == currentState && t.event == event;
-    }
+    if constexpr (!Transition::HasGuard()) { return t.source == currentState && t.event == event; }
   }
 
   constexpr void trigger(const Event &event) {
     for (auto &t : transitions) {
       if (isTransitionTakeable(t, event)) {
-        if constexpr (Transition::HasAction()) {
-          t.action();
-        }
+        if constexpr (Transition::HasAction()) { t.action(); }
         currentState = t.target;
         break;
       }

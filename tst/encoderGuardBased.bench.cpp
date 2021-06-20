@@ -87,12 +87,12 @@ void trigger(State &currentState, int &delta, bool &a, bool &b) {
 }
 
 static void encoderGuardBasedHC(benchmark::State &s) {
-  int delta = 0;
-  bool a = false;
-  bool b = false;
+  int   delta        = 0;
+  bool  a            = false;
+  bool  b            = false;
   State currentState = State::idle;
 
-  static std::mt19937 mt{std::random_device{}()};
+  static std::mt19937                  mt{std::random_device{}()};
   std::uniform_int_distribution<short> dist(0, 1);
 
   auto getUpdates = [&] {
@@ -138,7 +138,7 @@ auto makeStateMachine(int &delta, const bool &a, const bool &b) {
   using namespace susml::factory;
   using susml::vectorbased::StateMachine;
 
-  auto Fn = [](auto e) { return std::function(e); };
+  auto Fn  = [](auto e) { return std::function(e); };
   auto And = [&](bool desiredA, bool desiredB) {
     return Fn([&] { return (a == desiredA && b == desiredB); });
   };
@@ -229,17 +229,16 @@ auto makeStateMachine(int &delta, const bool &a, const bool &b) {
                                  .Do(Fn([&] { delta--; }))
                                  .make()};
 
-  return StateMachine<decltype(transitions)::value_type>{State::idle,
-                                                         transitions};
+  return StateMachine<decltype(transitions)::value_type>{State::idle, transitions};
 }
 
 static void encoderGuardBasedVB(benchmark::State &s) {
-  int delta = 0;
-  bool a = false;
-  bool b = false;
-  auto m = makeStateMachine(delta, a, b);
+  int  delta = 0;
+  bool a     = false;
+  bool b     = false;
+  auto m     = makeStateMachine(delta, a, b);
 
-  static std::mt19937 mt{std::random_device{}()};
+  static std::mt19937                  mt{std::random_device{}()};
   std::uniform_int_distribution<short> dist(0, 1);
 
   auto getUpdates = [&] {
@@ -285,52 +284,78 @@ using susml::Transition;
 
 auto makeStateMachine(int &delta, bool &a, bool &b) {
   auto And = [&](bool desiredA, bool desiredB) {
-    return
-        [&a, &b, desiredA, desiredB] { return a == desiredA && b == desiredB; };
+    return [&a, &b, desiredA, desiredB] { return a == desiredA && b == desiredB; };
   };
-  auto transitions = std::make_tuple(
-      Transition(State::idle, // false false
-                 State::clockwise1, Event::update, And(false, true)),
-      Transition(State::clockwise1, // false true
-                 State::idle, Event::update, And(false, false)),
-      Transition(State::clockwise1, // false true
-                 State::clockwise2, Event::update, And(true, true)),
-      Transition(State::clockwise2, // true true
-                 State::clockwise1, Event::update, And(false, true)),
-      Transition(State::clockwise2, // true true
-                 State::clockwise3, Event::update, And(true, false)),
-      Transition(State::clockwise3, // true false
-                 State::clockwise2, Event::update, And(true, true)),
-      Transition(State::clockwise3, // true false
-                 State::idle, Event::update, And(false, false),
-                 [&] { delta++; }),
-      Transition(State::idle, // false false
-                 State::counterclockwise1, Event::update, And(true, false)),
-      Transition(State::counterclockwise1, // true false
-                 State::idle, Event::update, And(false, false)),
-      Transition(State::counterclockwise1, // true false
-                 State::counterclockwise2, Event::update, And(true, true)),
-      Transition(State::counterclockwise2, // true true
-                 State::counterclockwise1, Event::update, And(true, false)),
-      Transition(State::counterclockwise2, // true true
-                 State::counterclockwise3, Event::update, And(false, true)),
-      Transition(State::counterclockwise3, // false true
-                 State::counterclockwise2, Event::update, And(true, true)),
-      Transition(State::counterclockwise3, // false true
-                 State::idle, Event::update, And(false, false),
-                 [&] { delta--; }));
+  auto transitions = std::make_tuple(Transition(State::idle, // false false
+                                                State::clockwise1,
+                                                Event::update,
+                                                And(false, true)),
+                                     Transition(State::clockwise1, // false true
+                                                State::idle,
+                                                Event::update,
+                                                And(false, false)),
+                                     Transition(State::clockwise1, // false true
+                                                State::clockwise2,
+                                                Event::update,
+                                                And(true, true)),
+                                     Transition(State::clockwise2, // true true
+                                                State::clockwise1,
+                                                Event::update,
+                                                And(false, true)),
+                                     Transition(State::clockwise2, // true true
+                                                State::clockwise3,
+                                                Event::update,
+                                                And(true, false)),
+                                     Transition(State::clockwise3, // true false
+                                                State::clockwise2,
+                                                Event::update,
+                                                And(true, true)),
+                                     Transition(State::clockwise3, // true false
+                                                State::idle,
+                                                Event::update,
+                                                And(false, false),
+                                                [&] { delta++; }),
+                                     Transition(State::idle, // false false
+                                                State::counterclockwise1,
+                                                Event::update,
+                                                And(true, false)),
+                                     Transition(State::counterclockwise1, // true false
+                                                State::idle,
+                                                Event::update,
+                                                And(false, false)),
+                                     Transition(State::counterclockwise1, // true false
+                                                State::counterclockwise2,
+                                                Event::update,
+                                                And(true, true)),
+                                     Transition(State::counterclockwise2, // true true
+                                                State::counterclockwise1,
+                                                Event::update,
+                                                And(true, false)),
+                                     Transition(State::counterclockwise2, // true true
+                                                State::counterclockwise3,
+                                                Event::update,
+                                                And(false, true)),
+                                     Transition(State::counterclockwise3, // false true
+                                                State::counterclockwise2,
+                                                Event::update,
+                                                And(true, true)),
+                                     Transition(State::counterclockwise3, // false true
+                                                State::idle,
+                                                Event::update,
+                                                And(false, false),
+                                                [&] { delta--; }));
 
-  return susml::tuplebased::StateMachine<State, Event, decltype(transitions)>(
-      State::idle, transitions);
+  return susml::tuplebased::StateMachine<State, Event, decltype(transitions)>(State::idle,
+                                                                              transitions);
 }
 
 static void encoderGuardBasedTB(benchmark::State &s) {
-  int delta = 0;
-  bool a = false;
-  bool b = false;
-  auto m = makeStateMachine(delta, a, b);
+  int  delta = 0;
+  bool a     = false;
+  bool b     = false;
+  auto m     = makeStateMachine(delta, a, b);
 
-  static std::mt19937 mt{std::random_device{}()};
+  static std::mt19937                  mt{std::random_device{}()};
   std::uniform_int_distribution<short> dist(0, 1);
 
   auto getUpdates = [&] {

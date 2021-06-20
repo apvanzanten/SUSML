@@ -48,11 +48,9 @@ std::ostream &operator<<(std::ostream &stream, const NoneType &) {
 }
 
 template <typename... Types>
-std::ostream &operator<<(std::ostream &stream,
-                         const PartialTransition<Types...> &t) {
+std::ostream &operator<<(std::ostream &stream, const PartialTransition<Types...> &t) {
   using P = PartialTransition<Types...>;
-  stream << "From(" << t.source << ").To(" << t.target << ").On(" << t.event
-         << ")";
+  stream << "From(" << t.source << ").To(" << t.target << ").On(" << t.event << ")";
   if constexpr (P::HasGuard()) {
     stream << ".If(" << reinterpret_cast<void *>(t.guard) << ")";
   } else if constexpr (!P::HasGuard()) {
@@ -137,7 +135,7 @@ TEST(PartialTransitionTests, On) {
 }
 
 TEST(PartialTransitionTests, If) {
-  const auto guard = guardTrue;
+  const auto guard         = guardTrue;
   const auto guardModified = guardFalse;
 
   const auto t = If(guard);
@@ -168,7 +166,7 @@ TEST(PartialTransitionTests, If) {
 }
 
 TEST(PartialTransitionTests, Do) {
-  const auto action = actionA;
+  const auto action         = actionA;
   const auto actionModified = actionB;
 
   const auto t = Do(action);
@@ -233,11 +231,7 @@ TEST(PartialTransitionTests, FullConstruction) {
 }
 
 TEST(PartialTransitionTests, makeFullyPopulated) {
-  const auto p = From(State::on)
-                     .To(State::off)
-                     .On(Event::turnOff)
-                     .If(guardFalse)
-                     .Do(actionB);
+  const auto p = From(State::on).To(State::off).On(Event::turnOff).If(guardFalse).Do(actionB);
   const auto t = p.make();
   ASSERT_EQ(State::on, p.source);
   ASSERT_EQ(State::off, p.target);
@@ -287,8 +281,7 @@ TEST(PartialTransitionTests, makeWithoutGuards) {
 }
 
 TEST(PartialTransitionTests, makeWithoutActions) {
-  const auto p =
-      From(State::off).To(State::on).On(Event::turnOn).If(guardFalse);
+  const auto p = From(State::off).To(State::on).On(Event::turnOn).If(guardFalse);
   ASSERT_FALSE(p.HasAction());
   ASSERT_TRUE(p.HasGuard());
   ASSERT_EQ(State::off, p.source);
