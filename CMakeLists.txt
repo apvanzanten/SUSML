@@ -15,6 +15,11 @@ cmake_minimum_required(VERSION 3.7)
 project(susml)
 
 set(TEST_DIR ${PROJECT_SOURCE_DIR}/tst)
+set(HEADERS ${PROJECT_SOURCE_DIR}/common.hpp
+            ${PROJECT_SOURCE_DIR}/factory.hpp
+            ${PROJECT_SOURCE_DIR}/tuplebased.hpp
+            ${PROJECT_SOURCE_DIR}/vectorbased.hpp
+)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -27,6 +32,25 @@ set(RELEASE_FLAGS -O3;)
 set(BENCHMARK_FLAGS ${WARNINGS} ${RELEASE_FLAGS})
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+string(CONCAT CLANG_TIDY_CHECKS
+        "performance-*,"
+        "cppcoreguidelines-*,"
+        "bugprone-*,"
+        "misc-*,"
+        "portabilty-*,"
+        "-misc-non-private-member-variables-in-classes," # false-positives on structs
+        "modernize-*,"
+        "-modernize-use-trailing-return-type," # trailing return types should not be the default
+        "readability-*,"
+        "-readability-named-parameter," # I use unnamed parameters to indicate they're not used (common in TMP)
+        "clang-analyzer-*")
+
+add_custom_target(RunTidy
+    COMMAND clang-tidy -p ${CMAKE_BINARY_DIR} ${HEADERS} -checks=${CLANG_TIDY_CHECKS} -header-filter=.*
+    DEPENDS ${HEADERS}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
 
 enable_testing()
 find_package(GTest REQUIRED)
