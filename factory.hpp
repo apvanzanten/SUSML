@@ -14,7 +14,6 @@
 // along with SUSML. If not, see <https://www.gnu.org/licenses/>.
 
 #include "common.hpp"
-#include <functional>
 #include <type_traits>
 
 namespace susml::factory {
@@ -68,12 +67,12 @@ struct PartialTransition {
         source, target, newEvent, guard, action};
   }
 
-  template <typename NewGuard = std::function<bool()>>
+  template <typename NewGuard>
   constexpr PartialTransition<State, Event, NewGuard, Action> If(NewGuard newGuard) const {
     return {source, target, event, newGuard, action};
   }
 
-  template <typename NewAction = std::function<void()>>
+  template <typename NewAction>
   constexpr PartialTransition<State, Event, Guard, NewAction> Do(NewAction newAction) const {
     return {source, target, event, guard, newAction};
   }
