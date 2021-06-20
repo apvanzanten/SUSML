@@ -14,7 +14,7 @@
 #ifndef VECTORBASED_HPP
 #define VECTORBASED_HPP
 
-#include "Transition.hpp"
+#include "common.hpp"
 #include <vector>
 
 namespace susml::vectorbased {

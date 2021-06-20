@@ -18,7 +18,7 @@
 #include <algorithm>
 #include <type_traits>
 
-#include "Transition.hpp"
+#include "common.hpp"
 
 namespace susml::tuplebased {
 

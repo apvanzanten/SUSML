@@ -14,7 +14,7 @@
 #ifndef SUSML_HPP
 #define SUSML_HPP
 
-#include "Transition.hpp"
+#include "common.hpp"
 #include "vectorbased.hpp"
 
 namespace susml {

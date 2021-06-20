@@ -3,7 +3,7 @@
 
 #include <benchmark/benchmark.h>
 
-#include "Transition.hpp"
+#include "common.hpp"
 #include "factory.hpp"
 #include "tuplebased.hpp"
 #include "vectorbased.hpp"

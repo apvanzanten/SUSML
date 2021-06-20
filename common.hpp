@@ -11,8 +11,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with SUSML. If not, see <https://www.gnu.org/licenses/>.
 
-#ifndef TRANSITION_HPP
-#define TRANSITION_HPP
+#ifndef COMMON_HPP
+#define COMMON_HPP
 
 #include <type_traits>
 

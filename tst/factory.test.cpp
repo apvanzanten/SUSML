@@ -14,7 +14,7 @@
 
 #include "gtest/gtest.h"
 
-#include "Transition.hpp"
+#include "common.hpp"
 #include "factory.hpp"
 
 #include <algorithm>
