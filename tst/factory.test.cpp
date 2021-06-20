@@ -1,4 +1,3 @@
-
 // This file is part of Still Untitled State Machine Library (SUSML).
 //    Copyright (C) 2021 A.P. van Zanten
 // SUSML is free software: you can redistribute it and/or modify

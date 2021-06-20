@@ -1,5 +1,3 @@
-#ifndef FACTORY_HPP
-#define FACTORY_HPP
 // This file is part of Still Untitled State Machine Library (SUSML).
 //    Copyright (C) 2021 A.P. van Zanten
 // SUSML is free software: you can redistribute it and/or modify
@@ -12,6 +10,9 @@
 // GNU Lesser General Public License for more details.
 // You should have received a copy of the GNU Lesser General Public License
 // along with SUSML. If not, see <https://www.gnu.org/licenses/>.
+
+#ifndef FACTORY_HPP
+#define FACTORY_HPP
 
 #include "common.hpp"
 #include <type_traits>
