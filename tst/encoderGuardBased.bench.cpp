@@ -13,6 +13,7 @@
 
 #include <benchmark/benchmark.h>
 #include <random>
+#include <functional>
 
 #include "factory.hpp"
 #include "tuplebased.hpp"

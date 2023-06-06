@@ -15,6 +15,7 @@
 #define CIRCLEBENCH_UTIL_HPP
 
 #include <benchmark/benchmark.h>
+#include <functional>
 
 #include "common.hpp"
 #include "factory.hpp"
